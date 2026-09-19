@@ -86,15 +86,21 @@ scheduling anything:
    verified to false and cap the tier at C." The model applied that rule
    correctly; the fixture just wasn't rich enough to be judged on merit.
    Fixed by rewriting the fixture with realistic posting detail
-   (responsibilities, requirements, comp range) -- rerun
-   `dry_run_scoring.py` after deleting `data/jobs.db` (or using a fresh
-   `DB_PATH`) to confirm it now scores in the A range. This is exactly
-   the kind of finding this test step exists to catch: it validates the
-   model is following the rubric literally, including edge-case rules,
-   rather than just "scoring things that sound impressive." One transient
-   Gemini 503 (server overload, not a code issue) was also observed and
-   recovered on its own -- worth knowing this can happen, not a concern by
-   itself unless it recurs frequently.
+   (responsibilities, requirements, comp range). This is exactly the kind
+   of finding this test step exists to catch: it validates the model is
+   following the rubric literally, including edge-case rules, rather than
+   just "scoring things that sound impressive." One transient Gemini 503
+   (server overload, not a code issue) was also observed and recovered on
+   its own -- worth knowing this can happen, not a concern by itself
+   unless it recurs frequently.
+
+   **Confirmed fixed (2026-09-19, same session, after `git pull` +
+   deleting `data/jobs.db` and rerunning `dry_run_scoring.py`):** all 5
+   fixtures now behave exactly as designed. Stonecrest BD scored Track 1 /
+   Tier A / 90/100; Prairie Sky Energy AI Ops scored Track 4 / Tier A /
+   **95/100** (industry_fit 10/10, ai_bonus +5) -- the HIGH score the
+   build spec's own test instructions ask for. Cost: $0.00 across both
+   live calls. All items in this section are now confirmed passing.
 
 4. **Only after Tommy approves the above, turn on the schedule**
    (`scripts/install_cron.sh`, then verify with `scripts/check_cron.sh`).
