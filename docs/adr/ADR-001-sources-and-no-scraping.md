@@ -49,9 +49,13 @@ Never touch LinkedIn or Indeed directly. Instead, read four sources:
    well-documented CXS API conventions, not a live-tested call against a
    real tenant -- outbound requests to `*.myworkdayjobs.com` were blocked
    by the network egress policy of the sandbox this was built in (both
-   `curl` and WebFetch returned `EGRESS_BLOCKED`). The one target seeded in
-   `targets.yaml` (Clark Builders) is marked unverified there for that
-   reason; treat its first real run as the actual verification step.
+   `curl` and WebFetch returned `EGRESS_BLOCKED`). Both targets seeded in
+   `targets.yaml` are unverified against the CXS *endpoint* itself for
+   that reason, though at different confidence: Ledcor's tenant/site
+   (`ledcor` / `wd3` / `Ledcor_External`) is confirmed against several
+   real, independently indexed job URLs; Clark Builders' comes from a
+   single search snippet. Treat each target's first real run as the
+   actual verification step -- see `targets.yaml`'s per-target notes.
 
 ## Consequences
 - No dependency on LinkedIn/Indeed's stability, rate limits, or anti-bot

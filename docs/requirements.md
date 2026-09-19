@@ -110,13 +110,14 @@ Developments, BAM, MNP Corporate Finance, Sequeira Partners, Stack'd
 Consulting) use Greenhouse, Lever, Ashby or Workable -- the four ATS
 platforms Source B originally supported. Two (Ledcor, Clark Builders) use
 Workday instead, so a fifth collector (`collectors/workday.py`, Source E)
-was added for it. It's seeded with one target (Clark Builders) but marked
-unverified: the request/response shape follows Workday's documented CXS
+was added for it. It's seeded with both targets -- Ledcor
+(`ledcor`/`wd3`/`Ledcor_External`, confirmed against several independently
+indexed job URLs) and Clark Builders (`cbgoc`/`wd3`/`cb`, a single search
+snippet) -- but both are marked unverified against the actual CXS
+*endpoint*: the request/response shape follows Workday's documented CXS
 API conventions, but outbound requests to `*.myworkdayjobs.com` were
-blocked by this environment's network egress policy, so it couldn't be
-tested against a live tenant here (see ADR-001). Ledcor's underlying
-Workday tenant/site slug also hasn't been found yet -- `targets.yaml`
-explains how to find it via browser devtools.
+blocked by this environment's network egress policy, so neither could be
+tested end-to-end here (see ADR-001).
 
 Still outstanding before scheduling: the manual pre-launch run against a
 live Claude API key (docs/test_plan.md §2), which needs to happen on a

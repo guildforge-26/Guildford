@@ -48,7 +48,7 @@ def test_fetch_workday_jobs_parses_single_page(monkeypatch):
     assert posting["company"] == "Clark Builders"
     assert posting["location"] == "Calgary, AB"
     assert posting["source"] == "workday"
-    assert posting["url"] == "https://cbgoc.wd3.myworkdayjobs.com/cb/job/Calgary/Director-of-Operations_R1234"
+    assert posting["url"] == "https://cbgoc.wd3.myworkdayjobs.com/en-US/cb/job/Calgary/Director-of-Operations_R1234"
     assert posting["posted_at"] == "Posted 3 Days Ago"
     assert len(calls) == 1
     assert calls[0][0] == "https://cbgoc.wd3.myworkdayjobs.com/wday/cxs/cbgoc/cb/jobs"

@@ -10,13 +10,20 @@
 # ASTRA, Style Developments, BAM, MNP Corporate Finance, Sequeira Partners,
 # Stack'd Consulting -- does NOT use Greenhouse, Lever, Ashby or Workable.
 # What was found instead:
-#   - Ledcor:         Workday, at jobs.ledcor.com (underlying tenant/site
-#                      slug not yet found -- jobs.ledcor.com is a custom
-#                      domain in front of it; see "How to find a Workday
-#                      target" below)
+#   - Ledcor:         Workday, tenant=ledcor, wd_host=wd3,
+#                      site=Ledcor_External -- confirmed against multiple
+#                      indexed, real job URLs (e.g.
+#                      ledcor.wd3.myworkdayjobs.com/en-US/Ledcor_External/
+#                      job/Ironworker_R24145), stronger evidence than Clark
+#                      Builders below. Still worth a first-run log check
+#                      (see docs/adr/ADR-001) since the CXS *request*
+#                      endpoint itself was never called live from the
+#                      sandbox this was built in -- only human-facing job
+#                      pages were seen via search, not the JSON API.
 #   - Clark Builders: Workday, at cbgoc.wd3.myworkdayjobs.com/cb -- added
 #                      below as tenant=cbgoc, wd_host=wd3, site=cb, but
-#                      UNVERIFIED: the collector's request shape was built
+#                      UNVERIFIED (single search snippet, no indexed job
+#                      URLs seen): the collector's request shape was built
 #                      from Workday's documented CXS API conventions, not
 #                      tested against this tenant, because outbound
 #                      requests to *.myworkdayjobs.com were blocked by the
@@ -53,6 +60,14 @@
 #   site: careers
 
 targets:
+  - company: "Ledcor"
+    board_type: workday
+    tenant: ledcor
+    wd_host: wd3
+    site: Ledcor_External
+    # Confirmed via multiple indexed job URLs (see note above). Confirm the
+    # CXS jobs endpoint itself in logs/run-*.log after the first real run.
+
   - company: "Clark Builders"
     board_type: workday
     tenant: cbgoc

@@ -41,9 +41,13 @@ def _cxs_url(tenant: str, wd_host: str, site: str) -> str:
     return f"https://{tenant}.{wd_host}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
 
 
-def _careers_url(tenant: str, wd_host: str, site: str, external_path: str) -> str:
+def _careers_url(tenant: str, wd_host: str, site: str, external_path: str, locale: str = "en-US") -> str:
+    # Workday's human-facing job links carry a locale segment before the
+    # site name (confirmed against real, indexed Ledcor job URLs, e.g.
+    # ledcor.wd3.myworkdayjobs.com/en-US/Ledcor_External/job/...) even
+    # though the CXS POST endpoint itself does not.
     path = external_path if external_path.startswith("/") else f"/{external_path}"
-    return f"https://{tenant}.{wd_host}.myworkdayjobs.com/{site}{path}"
+    return f"https://{tenant}.{wd_host}.myworkdayjobs.com/{locale}/{site}{path}"
 
 
 def _fetch_page(tenant: str, wd_host: str, site: str, offset: int) -> dict:
