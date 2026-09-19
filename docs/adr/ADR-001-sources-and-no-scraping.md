@@ -37,6 +37,22 @@ Never touch LinkedIn or Indeed directly. Instead, read four sources:
    real, verified feed URL is set in `.env`. This keeps the door open
    without pretending a nonexistent integration is real.
 
+5. **Workday CXS API.** Added after checking briefing.txt Part G's starter
+   target list live: none of the named companies use Greenhouse, Lever,
+   Ashby or Workable, but two (Ledcor, Clark Builders) run on Workday.
+   Workday-hosted careers sites call a public, unauthenticated JSON
+   endpoint (`POST .../wday/cxs/{tenant}/{site}/jobs`) to render their own
+   job list -- the same category of source as Greenhouse's public API, and
+   the same justification: a company's own frontend calling its own public
+   endpoint about its own postings, not scraping. `collectors/workday.py`.
+   Caveat: this collector's request/response shape comes from Workday's
+   well-documented CXS API conventions, not a live-tested call against a
+   real tenant -- outbound requests to `*.myworkdayjobs.com` were blocked
+   by the network egress policy of the sandbox this was built in (both
+   `curl` and WebFetch returned `EGRESS_BLOCKED`). The one target seeded in
+   `targets.yaml` (Clark Builders) is marked unverified there for that
+   reason; treat its first real run as the actual verification step.
+
 ## Consequences
 - No dependency on LinkedIn/Indeed's stability, rate limits, or anti-bot
   measures, and zero risk to Tommy's accounts.

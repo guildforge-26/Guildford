@@ -40,6 +40,7 @@ Out of scope (explicitly, per the spec's hard rules):
 | B. ATS boards | Public Greenhouse/Lever/Ashby/Workable JSON APIs, from `targets.yaml` | These are public, documented-by-convention endpoints meant for embedding a careers page -- not access-controlled or scraped |
 | C. Adzuna | Public, keyed job-search API, Canada endpoint | Documented public API with terms that permit this use |
 | D. Job Bank / GC / municipal | Public feeds, **off by default** | No documented real-time public postings API was found/verified while building this; wiring exists but is inert until a real feed URL is confirmed (see ADR-001) |
+| E. Workday CXS API | Public JSON API, from `targets.yaml` (`board_type: workday`), **one seeded target, unverified** | Same category as Source B: a company's own careers-page frontend calling its own public postings endpoint (see ADR-001) |
 
 ## 4. Hard rules (verbatim intent from the spec)
 
@@ -102,18 +103,20 @@ from Part G/H rather than inferred, and `prefilter.py` applies the two
 different compensation floors Part B sets (full-time $100k/year vs. Track
 2 fractional/interim $5k/month) based on which track a title matches.
 
-Remaining gap, found by checking each Part G target company live (see
-`targets.yaml`'s header comment and ADR-001): none of the named starter
-companies (Chandos, Ledcor, Graham, PCL, Clark Builders, Carlson, ASTRA,
-Style Developments, BAM, MNP Corporate Finance, Sequeira Partners, Stack'd
+Found by checking each Part G target company live (see `targets.yaml`'s
+header comment and ADR-001): none of the named starter companies
+(Chandos, Ledcor, Graham, PCL, Clark Builders, Carlson, ASTRA, Style
+Developments, BAM, MNP Corporate Finance, Sequeira Partners, Stack'd
 Consulting) use Greenhouse, Lever, Ashby or Workable -- the four ATS
-platforms Source B supports. Two (Ledcor, Clark Builders) use Workday,
-which has a similarly public JSON API and could be added as a fifth
-collector type; this wasn't done in this pass because it couldn't be
-verified end-to-end from this environment (see `targets.yaml`). Until then,
-`targets.yaml` stays empty and Source B has no real coverage of Part G's
-starter list -- Sources A (email alerts) and C (Adzuna) are what actually
-surface postings from these employers today.
+platforms Source B originally supported. Two (Ledcor, Clark Builders) use
+Workday instead, so a fifth collector (`collectors/workday.py`, Source E)
+was added for it. It's seeded with one target (Clark Builders) but marked
+unverified: the request/response shape follows Workday's documented CXS
+API conventions, but outbound requests to `*.myworkdayjobs.com` were
+blocked by this environment's network egress policy, so it couldn't be
+tested against a live tenant here (see ADR-001). Ledcor's underlying
+Workday tenant/site slug also hasn't been found yet -- `targets.yaml`
+explains how to find it via browser devtools.
 
 Still outstanding before scheduling: the manual pre-launch run against a
 live Claude API key (docs/test_plan.md §2), which needs to happen on a

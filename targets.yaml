@@ -1,8 +1,8 @@
-# ATS board targets checked every run for public job postings.
+# Job board targets checked every run for public job postings.
 #
-# Supported board_type values: greenhouse, lever, ashby, workable.
-# Each is a public JSON API meant for embedding job boards on a company's
-# careers page -- reading it is not scraping and doesn't touch LinkedIn or
+# Supported board_type values: greenhouse, lever, ashby, workable, workday.
+# Each is a public JSON API meant for embedding a company's own careers
+# page -- reading it is not scraping and doesn't touch LinkedIn or
 # Indeed's terms of service.
 #
 # RESEARCH FINDING (checked live, September 2026): briefing.txt Part G's
@@ -10,28 +10,54 @@
 # ASTRA, Style Developments, BAM, MNP Corporate Finance, Sequeira Partners,
 # Stack'd Consulting -- does NOT use Greenhouse, Lever, Ashby or Workable.
 # What was found instead:
-#   - Ledcor:        Workday, at jobs.ledcor.com
-#   - Clark Builders: Workday, at cbgoc.wd3.myworkdayjobs.com/cb
-#   - PCL:           proprietary (careers.pcl.com + craftlink.pcl.com)
+#   - Ledcor:         Workday, at jobs.ledcor.com (underlying tenant/site
+#                      slug not yet found -- jobs.ledcor.com is a custom
+#                      domain in front of it; see "How to find a Workday
+#                      target" below)
+#   - Clark Builders: Workday, at cbgoc.wd3.myworkdayjobs.com/cb -- added
+#                      below as tenant=cbgoc, wd_host=wd3, site=cb, but
+#                      UNVERIFIED: the collector's request shape was built
+#                      from Workday's documented CXS API conventions, not
+#                      tested against this tenant, because outbound
+#                      requests to *.myworkdayjobs.com were blocked by the
+#                      sandbox this was built in. Check logs after the
+#                      first real run; remove this entry if it never
+#                      returns postings (see docs/adr/ADR-001).
+#   - PCL:            proprietary (careers.pcl.com + craftlink.pcl.com) --
+#                      no supported platform
 #   - Graham, Carlson, MNP, Sequeira Partners: no ATS platform identified;
 #     postings surface only on their own site and/or Indeed/LinkedIn/Glassdoor
 #   - Chandos, ASTRA, Style Developments, BAM: not confirmed either way
-# So this list is empty by design, not by omission: none of Part G's named
-# firms are coverable by this collector as scoped. Workday DOES have a
-# public JSON API at the same shape as Greenhouse's
-# (POST https://{tenant}.wd{N}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs)
-# and would cover Ledcor and Clark Builders -- worth adding as a fifth
-# collector type if Workday coverage matters enough to justify it (see
-# docs/adr/ADR-001). It wasn't added here because it couldn't be verified
-# end-to-end from this sandbox (outbound network policy blocked the test
-# request), so shipping it untested would risk a silent, unverified
-# integration -- exactly what ADR-001 already argues against for Job Bank.
 #
-# If you find a company from Part G that DOES use one of the four
-# supported platforms, add it here:
+# How to find a Workday target's tenant/wd_host/site:
+#   Open the company's careers page, open browser devtools -> Network tab,
+#   filter for "wday/cxs", and look at the request URL:
+#   https://{tenant}.{wd_host}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs
+#   (jobs.ledcor.com should redirect or proxy to a URL like this -- the
+#   values that appear there are tenant, wd_host, and site).
+#
+# How to find a Greenhouse/Lever/Ashby/Workable slug:
+#   Greenhouse: their careers page URL is usually boards.greenhouse.io/<slug>
+#   Lever:      jobs.lever.co/<slug>
+#   Ashby:      jobs.ashbyhq.com/<slug>
+#   Workable:   apply.workable.com/<slug>
 #
 # - company: "Example Construction Co."
 #   board_type: greenhouse
 #   slug: examplecorp
+#
+# - company: "Example Workday Co."
+#   board_type: workday
+#   tenant: exampleco
+#   wd_host: wd1
+#   site: careers
 
-targets: []
+targets:
+  - company: "Clark Builders"
+    board_type: workday
+    tenant: cbgoc
+    wd_host: wd3
+    site: cb
+    # UNVERIFIED -- see the note above. Confirm in logs/run-*.log after the
+    # first real run (look for "workday" collector entries), then delete
+    # this comment once it's proven to return postings.

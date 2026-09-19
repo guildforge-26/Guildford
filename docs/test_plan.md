@@ -26,6 +26,11 @@ Covers the pure, dependency-free logic:
 - `test_db.py` -- idempotency of posting upserts (incl. cross-source
   duplicates), alerts, scores, processed-email tracking, digest log, and
   the follow-up-due query.
+- `test_workday_collector.py` -- Workday CXS response parsing and
+  pagination against a mocked HTTP layer (per-target failure isolation,
+  the all-targets-failed case). Mocked because a live tenant couldn't be
+  reached from the sandbox this was built in -- see ADR-001 and
+  `targets.yaml`'s note on the one seeded (unverified) target.
 
 These run with no API key, no `briefing.txt`, and no network access, so
 they're safe to run anywhere, anytime, including in CI.

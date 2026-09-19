@@ -19,6 +19,7 @@ from .collectors.ats_boards import collect_from_board_type
 from .collectors.base import run_collector
 from .collectors.gmail_alerts import collect_from_gmail
 from .collectors.job_bank import collect_from_job_bank
+from .collectors.workday import collect_from_workday
 from .config import Settings, get_settings
 from .dedupe import build_posting_record
 from .enrich import EnrichmentError, fetch_posting_text
@@ -84,6 +85,13 @@ def _collect_all(settings: Settings, conn, circuit_breaker: CircuitBreaker, logg
         circuit_breaker=circuit_breaker, max_retries=settings.max_retries_per_source, logger=logger,
     )
     counts["job_bank"] = len(postings)
+    raw.extend(postings)
+
+    postings = run_collector(
+        "workday", lambda: collect_from_workday(str(settings.targets_path), logger=logger),
+        circuit_breaker=circuit_breaker, max_retries=settings.max_retries_per_source, logger=logger,
+    )
+    counts["workday"] = len(postings)
     raw.extend(postings)
 
     return raw, counts
