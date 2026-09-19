@@ -10,7 +10,7 @@ import streamlit as st
 from google import genai
 from google.genai import types
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 
 SYSTEM_PROMPT = """You are the Executive OS onboarding interviewer. Your job is to \
 interview a CEO/COO and, through natural conversation, gather exactly this \
