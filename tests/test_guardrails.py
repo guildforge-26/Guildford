@@ -40,6 +40,20 @@ def test_pipeline_lock_released_after_context(settings):
         pass  # second acquisition must succeed now that the first released it
 
 
+def test_pipeline_lock_reclaims_stale_lock_from_dead_pid(settings):
+    # Simulates a crashed run: a lock file naming a PID that no longer
+    # exists. fcntl.flock used to release automatically when its owning
+    # process died; the cross-platform (Windows-compatible) replacement
+    # has to detect this itself instead of leaving the system locked out
+    # forever.
+    settings.lock_path.parent.mkdir(parents=True, exist_ok=True)
+    dead_pid = 999_999  # not a real running process
+    settings.lock_path.write_text(str(dead_pid))
+
+    with pipeline_lock(settings):
+        pass  # must not raise LockHeld -- the stale lock should be reclaimed
+
+
 def test_run_timer_raises_after_budget_exceeded():
     timer = RunTimer(max_seconds=0)
     time.sleep(0.01)

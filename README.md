@@ -28,10 +28,23 @@ the pipeline logs `briefing_missing` and skips scoring rather than erroring.
 
 ## 1. Setup
 
+**On Linux/macOS** (all commands elsewhere in this file are written for
+this):
+
 ```bash
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 cp .env.example .env
+```
+
+**On Windows** (PowerShell): wherever the rest of this file says
+`venv/bin/python`, use `venv\Scripts\python.exe` instead (same for `pip`);
+wherever it says `cp`, use `copy`.
+
+```powershell
+python -m venv venv
+venv\Scripts\pip.exe install -r requirements.txt
+copy .env.example .env
 ```
 
 Edit `.env` and fill in what you have so far (see section 2 for the
@@ -41,7 +54,7 @@ channel is skipped and logged -- nothing crashes.
 Run the tests to confirm the install is sound:
 
 ```bash
-venv/bin/python -m pytest tests/ -v
+venv/bin/python -m pytest tests/ -v          # Windows: venv\Scripts\python.exe -m pytest tests/ -v
 ```
 
 ## 2. What you need to do by hand
@@ -143,19 +156,38 @@ budget, lower `MAX_MODEL_CALLS_PER_RUN` in `.env`.
 ## 6. Run the pre-launch tests, then turn on the schedule
 
 Follow `docs/test_plan.md` section 2 end to end and confirm the scores
-match your judgment. **Only after that**, turn on the schedule:
+match your judgment. **Only after that**, turn on the schedule.
+
+Three jobs get installed either way:
+- Every 4 hours: collect, prefilter, score, alert (`run_pipeline.py`)
+- Every hour: checks if it's 7am or 4pm Mountain time and drafts the
+  digest if so, DST-safe (`run_digest.py`)
+- Once a day (4:30am): the fractional CFO/COO opportunity scan
+  (`run_fractional_scan.py`)
+
+**On Linux/macOS** (cron):
 
 ```bash
 scripts/install_cron.sh   # adds the 3 cron jobs, safe to re-run
 scripts/check_cron.sh     # shows installed jobs, recent runs, log tail
 ```
 
-Three cron jobs are installed:
-- Every 4 hours: collect, prefilter, score, alert (`run_pipeline.py`)
-- Every hour: checks if it's 7am or 4pm Mountain time and drafts the
-  digest if so, DST-safe (`run_digest.py`)
-- Once a day (4:30am): the fractional CFO/COO opportunity scan
-  (`run_fractional_scan.py`)
+**On Windows** (Task Scheduler -- no admin rights needed, per-user tasks):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows\install_tasks.ps1
+powershell -ExecutionPolicy Bypass -File scripts\windows\check_tasks.ps1
+```
+
+This registers three scheduled tasks (`JobAlerts-Pipeline`,
+`JobAlerts-Digest`, `JobAlerts-FractionalScan`), visible in the Task
+Scheduler app (search for it in the Start menu -> Task Scheduler
+Library). They only run while your computer is on and awake -- a run
+missed because the computer was off or asleep is simply skipped, not
+lost, since the next run that does happen looks back further than its own
+interval (`COLLECT_LOOKBACK_HOURS` in `.env`, default 26 hours). To
+remove a task later: open Task Scheduler, right-click it, Delete (or
+`Unregister-ScheduledTask -TaskName "JobAlerts-Pipeline"` in PowerShell).
 
 ## 7. The kill switch
 

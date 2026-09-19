@@ -10,3 +10,9 @@ google-auth-oauthlib>=1.2.0
 python-dateutil>=2.9.0
 click>=8.1.7
 pytest>=8.3.0
+psutil>=5.9.0
+# tzdata: Windows doesn't ship IANA timezone data the way Linux/macOS do,
+# so zoneinfo.ZoneInfo("America/Edmonton") raises ZoneInfoNotFoundError
+# there without it. Harmless no-op install on platforms that already have
+# system tz data.
+tzdata>=2024.1

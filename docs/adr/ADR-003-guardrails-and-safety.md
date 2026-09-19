@@ -14,7 +14,7 @@ and are unit-tested in `tests/test_guardrails.py`:
 
 | Guardrail | Mechanism |
 |---|---|
-| Run lock (no overlapping runs) | `fcntl.flock` on `data/pipeline.lock`, non-blocking -- a second run gets `LockHeld` and exits immediately as `skipped_lock_held` |
+| Run lock (no overlapping runs) | Atomic file creation (`O_CREAT \| O_EXCL`) on `data/pipeline.lock`, non-blocking -- a second run gets `LockHeld` and exits immediately as `skipped_lock_held`. Originally `fcntl.flock`; rewritten cross-platform (see [ADR-007](ADR-007-windows-task-scheduler.md)) since `fcntl` doesn't exist on Windows. A lock left behind by a crashed run is detected as stale via `psutil.pid_exists()` on the recorded PID and reclaimed automatically -- replacing the automatic-release-on-crash behavior `fcntl.flock` gave for free |
 | Kill switch | `check_stop()` raises `StopRequested` if a `STOP` file exists at the project root; checked at run start and again mid-run after enrichment |
 | Wall-clock timeout | `RunTimer`, checked between every pipeline stage; default 20 minutes (`RUN_TIMEOUT_SECONDS`) |
 | Per-source retries | `with_retries()`, default 3 attempts (`MAX_RETRIES_PER_SOURCE`), used by every collector via `collectors/base.py::run_collector` |

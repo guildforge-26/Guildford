@@ -7,7 +7,6 @@ Nothing here sends anything outbound -- that's alerts/*.py, gated by these.
 """
 from __future__ import annotations
 
-import fcntl
 import os
 import sqlite3
 import time
@@ -15,6 +14,8 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Optional, TypeVar
 from zoneinfo import ZoneInfo
+
+import psutil
 
 from . import db as dbmod
 from .config import Settings
@@ -45,21 +46,39 @@ def check_stop(settings: Settings) -> None:
 
 @contextmanager
 def pipeline_lock(settings: Settings):
-    """Filesystem lock so two runs never overlap. Non-blocking: raises LockHeld immediately."""
+    """Filesystem lock so two runs never overlap. Non-blocking: raises LockHeld immediately.
+
+    Cross-platform by design (this runs on Windows via Task Scheduler as
+    often as it runs on Linux/macOS via cron): uses atomic file creation
+    (O_CREAT | O_EXCL), not fcntl.flock, which doesn't exist on Windows.
+    A lock left behind by a crashed run is detected as stale by checking
+    whether its recorded PID is still alive (psutil, cross-platform) and
+    cleared automatically -- fcntl's advisory lock used to do this for
+    free by releasing when its owning process died; this replaces that
+    guarantee explicitly.
+    """
     settings.lock_path.parent.mkdir(parents=True, exist_ok=True)
-    fd = open(settings.lock_path, "w")
+
+    if settings.lock_path.exists():
+        try:
+            existing_pid = int(settings.lock_path.read_text().strip())
+        except (ValueError, OSError):
+            existing_pid = None
+        if existing_pid is not None and psutil.pid_exists(existing_pid):
+            raise LockHeld(f"Another run (pid {existing_pid}) holds the lock at {settings.lock_path}")
+        settings.lock_path.unlink(missing_ok=True)  # stale lock from a crashed run
+
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        fd.close()
+        fd = os.open(settings.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
         raise LockHeld(f"Another run holds the lock at {settings.lock_path}")
+
     try:
-        fd.write(str(os.getpid()))
-        fd.flush()
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
         yield
     finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
-        fd.close()
+        settings.lock_path.unlink(missing_ok=True)
 
 
 class RunTimer:
