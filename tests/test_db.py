@@ -46,7 +46,7 @@ def test_score_saved_once_and_marks_posting_scored(conn):
         verified=1, track="1", tier="A", total_score=85, breakdown_json="{}", hard_filter_passed=1,
         hard_filter_reason=None, matching_facts_json="[]", top_gaps_json="[]", resume_version="v1",
         warm_angle="angle", next_action="apply", ai_bonus_score=0, ai_bonus_notes=None,
-        model_used="gemini-2.5-flash", input_tokens=100, output_tokens=50, cost_usd=0.0, raw_json="{}",
+        model_used="gemini-3.6-flash", input_tokens=100, output_tokens=50, cost_usd=0.0, raw_json="{}",
     )
     dbmod.save_score(conn, posting_id, row, "run1")
     assert dbmod.has_score(conn, posting_id) is True
@@ -78,7 +78,7 @@ def test_postings_needing_scoring_excludes_scored_and_unenriched(conn):
         verified=1, track="3", tier="B", total_score=70, breakdown_json="{}", hard_filter_passed=1,
         hard_filter_reason=None, matching_facts_json="[]", top_gaps_json="[]", resume_version="v1",
         warm_angle="angle", next_action="apply", ai_bonus_score=0, ai_bonus_notes=None,
-        model_used="gemini-2.5-flash", input_tokens=100, output_tokens=50, cost_usd=0.0, raw_json="{}",
+        model_used="gemini-3.6-flash", input_tokens=100, output_tokens=50, cost_usd=0.0, raw_json="{}",
     ), "run1")
 
     unenriched_id, _ = dbmod.upsert_posting(conn, _sample_posting(

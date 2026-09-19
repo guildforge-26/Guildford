@@ -6,14 +6,17 @@ Scoring itself is $0/call on the free tier (see
 docs/adr/ADR-006-scoring-model-gemini-free-tier.md), so there's no dollar
 cost to estimate anymore. The real pre-launch question is different: will
 this schedule's call volume fit inside the free tier's requests-per-day
-quota? Google's published free-tier RPD numbers for gemini-2.5-flash have
-varied across sources and over time, so this defaults to a conservative
-assumption you should adjust to whatever ai.google.dev/gemini-api/docs/rate-limits
-shows for your model on the day you read it.
+quota? Third-party reporting (not confirmed directly against
+ai.google.dev/gemini-api/docs/rate-limits from this environment) suggests
+the newer Gemini 3.x Flash generation's free tier is much stricter than
+older Gemini models -- as low as ~20 requests/day total for the model this
+project defaults to. This script defaults to that conservative number;
+adjust it to whatever the rate-limits page actually shows for your model
+on the day you read it.
 
 Usage:
     python scripts/estimate_cost.py
-    python scripts/estimate_cost.py --postings-per-run 8 --free-tier-rpd 1000
+    python scripts/estimate_cost.py --postings-per-run 3 --free-tier-rpd 20
 """
 import argparse
 import sys
@@ -43,12 +46,13 @@ def estimate(postings_per_run: float, free_tier_rpd: int) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--postings-per-run", type=float, default=5.0,
-                         help="Average NEW postings scored per 4-hour run after dedupe/prefilter (default: 5)")
-    parser.add_argument("--free-tier-rpd", type=int, default=250,
-                         help="Your model's free-tier requests-per-day limit -- check "
-                              "ai.google.dev/gemini-api/docs/rate-limits and adjust this (default: 250, "
-                              "a conservative figure for gemini-2.5-flash as of when this was written)")
+    parser.add_argument("--postings-per-run", type=float, default=3.0,
+                         help="Average NEW postings scored per 4-hour run after dedupe/prefilter (default: 3)")
+    parser.add_argument("--free-tier-rpd", type=int, default=20,
+                         help="Your model's free-tier requests-per-day limit -- CONFIRM at "
+                              "ai.google.dev/gemini-api/docs/rate-limits and adjust this (default: 20, "
+                              "an unconfirmed but consistently-reported figure for the Gemini 3.x Flash "
+                              "generation as of when this was written -- verify before trusting it)")
     args = parser.parse_args()
 
     result = estimate(args.postings_per_run, args.free_tier_rpd)

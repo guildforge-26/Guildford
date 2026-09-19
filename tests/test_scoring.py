@@ -115,7 +115,7 @@ def test_compute_cost_usd_math_holds_for_nonzero_pricing():
 
 def test_score_to_db_row_extracts_ai_bonus_and_track():
     result = ScoreResult(data=VALID_RESPONSE, input_tokens=100, output_tokens=50, cost_usd=0.0)
-    row = score_to_db_row(result, "gemini-2.5-flash")
+    row = score_to_db_row(result, "gemini-3.6-flash")
     assert row["track"] == "4"
     assert row["total_score"] == 89
     assert row["ai_bonus_score"] == 5
@@ -132,6 +132,6 @@ def test_score_to_db_row_inverts_hard_filter_failed():
     failed = {**VALID_RESPONSE, "hard_filter_failed": True, "hard_filter_reason": "below salary floor",
               "tier": "skip", "total_score": 0}
     result = ScoreResult(data=failed, input_tokens=100, output_tokens=50, cost_usd=0.0)
-    row = score_to_db_row(result, "gemini-2.5-flash")
+    row = score_to_db_row(result, "gemini-3.6-flash")
     assert row["hard_filter_passed"] == 0
     assert row["hard_filter_reason"] == "below salary floor"

@@ -31,14 +31,18 @@ def _env_float(name: str, default: float) -> float:
     return float(val) if val not in (None, "") else default
 
 
-# Gemini pricing per 1M tokens, USD. gemini-2.5-flash is used on the FREE
+# Gemini pricing per 1M tokens, USD. gemini-3.6-flash is used on the FREE
 # tier (Google AI Studio API key, no Cloud Billing account attached), which
 # is $0 per call -- see docs/adr/ADR-006-scoring-model-gemini-free-tier.md.
-# If you ever attach Cloud Billing and move off the free tier, replace
-# these with Gemini's current paid per-token rates (ai.google.dev/pricing)
-# before trusting cost_usd numbers again.
+# Verified live against a real key on 2026-09-19 (gemini-2.0-flash had been
+# retired by then; gemini-3.6-flash is what Google's API pointed to).
+# Model names and free-tier limits move fast -- confirm the current model
+# and its rate limits at ai.google.dev/gemini-api/docs/rate-limits rather
+# than trusting this default indefinitely. If you ever attach Cloud Billing
+# and move off the free tier, replace these with Gemini's current paid
+# per-token rates (ai.google.dev/pricing) before trusting cost_usd again.
 PRICING = {
-    "gemini-2.5-flash": {
+    "gemini-3.6-flash": {
         "input_per_mtok": 0.0,
         "output_per_mtok": 0.0,
     },
@@ -60,7 +64,7 @@ class Settings:
 
     # Gemini API (free tier -- Google AI Studio key, no Cloud Billing needed)
     gemini_api_key: str = field(default_factory=lambda: _env_str("GEMINI_API_KEY", ""))
-    gemini_model: str = field(default_factory=lambda: _env_str("GEMINI_MODEL", "gemini-2.5-flash"))
+    gemini_model: str = field(default_factory=lambda: _env_str("GEMINI_MODEL", "gemini-3.6-flash"))
 
     # Gmail
     gmail_credentials_path: Path = field(default_factory=lambda: Path(_env_str("GMAIL_CREDENTIALS_PATH", "./gmail_credentials.json")))
@@ -79,7 +83,7 @@ class Settings:
     ntfy_topic: str = field(default_factory=lambda: _env_str("NTFY_TOPIC", ""))
 
     # Guardrails / cost controls
-    max_model_calls_per_run: int = field(default_factory=lambda: _env_int("MAX_MODEL_CALLS_PER_RUN", 20))
+    max_model_calls_per_run: int = field(default_factory=lambda: _env_int("MAX_MODEL_CALLS_PER_RUN", 3))
     max_retries_per_source: int = field(default_factory=lambda: _env_int("MAX_RETRIES_PER_SOURCE", 3))
     run_timeout_seconds: int = field(default_factory=lambda: _env_int("RUN_TIMEOUT_SECONDS", 1200))
     circuit_breaker_failure_threshold: int = field(default_factory=lambda: _env_int("CIRCUIT_BREAKER_FAILURE_THRESHOLD", 3))
@@ -103,7 +107,7 @@ class Settings:
 
     @property
     def pricing(self) -> dict:
-        return PRICING.get(self.gemini_model, PRICING["gemini-2.5-flash"])
+        return PRICING.get(self.gemini_model, PRICING["gemini-3.6-flash"])
 
 
 def get_settings() -> Settings:
