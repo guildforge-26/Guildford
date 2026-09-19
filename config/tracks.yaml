@@ -1,0 +1,95 @@
+# Track keyword config for the cheap, pre-Claude-call title filter.
+#
+# PROVENANCE: sourced directly from briefing.txt Part G (target tracks) and
+# Part H (hard filters). Track ids match the "track" field the model itself
+# returns in scoring.py (1-4, or 0 for no track), as strings, for direct
+# comparability with scores.track values.
+tracks:
+  - id: "1"
+    name: "Business development, origination and relationship leadership"
+    title_keywords:
+      - "director of business development"
+      - "manager of business development"
+      - "business development manager"
+      - "business development director"
+      - "director of growth"
+      - "client relationship director"
+      - "pursuit manager"
+      - "strategic partnerships manager"
+      - "strategic partnerships director"
+      - "business development lead"
+
+  - id: "2"
+    name: "Fractional or interim CFO, COO or operator for owner-led companies"
+    title_keywords:
+      - "fractional cfo"
+      - "interim cfo"
+      - "fractional coo"
+      - "interim coo"
+      - "virtual cfo"
+      - "interim president"
+      - "interim general manager"
+      - "interim gm"
+      - "fractional operator"
+
+  - id: "3"
+    name: "COO, Integrator or operations lead at founder-led companies"
+    title_keywords:
+      - "chief operating officer"
+      - "coo"
+      - "integrator"
+      - "director of operations"
+      - "vp of operations"
+      - "vice president of operations"
+      - "general manager"
+      - "chief of staff"
+
+  - id: "4"
+    name: "AI operations and transformation"
+    title_keywords:
+      - "ai operations"
+      - "director of ai operations"
+      - "head of ai operations"
+      - "ai transformation"
+      - "director of automation"
+      - "director of digital transformation"
+      - "ai implementation consultant"
+      - "fractional chief ai officer"
+      - "ai strategy advisor"
+      - "ai program manager"
+
+# Titles that clearly belong to a different profession and should never
+# match a track even if a keyword above appears as a substring elsewhere.
+# Part G, Track 4: "Skip roles that require ML engineering, data science
+# degrees or shipped production code."
+title_exclude_keywords:
+  - "machine learning engineer"
+  - "ml engineer"
+  - "software engineer"
+  - "data engineer"
+  - "data scientist"
+  - "devops engineer"
+
+# Cheap, keyword-detectable hard filters from Part H, checked before the
+# paid scoring call so an obviously-disqualified posting never reaches it.
+# This is NOT the full Part H hard-filter list -- filters that need
+# judgment (company size, "field operations experience") are left to the
+# model, which has the full Part H text and applies them via
+# hard_filter_failed / hard_filter_reason on every scored posting.
+hard_filters:
+  disqualifying_phrases:
+    - "must be a cpa"
+    - "cpa designation required"
+    - "cpa required"
+    - "must hold a cpa"
+    - "chartered professional accountant required"
+    - "p.eng required"
+    - "p.eng. required"
+    - "professional engineer designation required"
+    - "peng designation required"
+    - "pmp certification required"
+    - "pmp required"
+    - "law degree required"
+    - "jd required"
+    - "bar admission required"
+    - "licensed attorney required"

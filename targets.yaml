@@ -1,0 +1,78 @@
+# Job board targets checked every run for public job postings.
+#
+# Supported board_type values: greenhouse, lever, ashby, workable, workday.
+# Each is a public JSON API meant for embedding a company's own careers
+# page -- reading it is not scraping and doesn't touch LinkedIn or
+# Indeed's terms of service.
+#
+# RESEARCH FINDING (checked live, September 2026): briefing.txt Part G's
+# starter list -- Chandos, Ledcor, Graham, PCL, Clark Builders, Carlson,
+# ASTRA, Style Developments, BAM, MNP Corporate Finance, Sequeira Partners,
+# Stack'd Consulting -- does NOT use Greenhouse, Lever, Ashby or Workable.
+# What was found instead:
+#   - Ledcor:         Workday, tenant=ledcor, wd_host=wd3,
+#                      site=Ledcor_External -- confirmed against multiple
+#                      indexed, real job URLs (e.g.
+#                      ledcor.wd3.myworkdayjobs.com/en-US/Ledcor_External/
+#                      job/Ironworker_R24145), stronger evidence than Clark
+#                      Builders below. Still worth a first-run log check
+#                      (see docs/adr/ADR-001) since the CXS *request*
+#                      endpoint itself was never called live from the
+#                      sandbox this was built in -- only human-facing job
+#                      pages were seen via search, not the JSON API.
+#   - Clark Builders: Workday, at cbgoc.wd3.myworkdayjobs.com/cb -- added
+#                      below as tenant=cbgoc, wd_host=wd3, site=cb, but
+#                      UNVERIFIED (single search snippet, no indexed job
+#                      URLs seen): the collector's request shape was built
+#                      from Workday's documented CXS API conventions, not
+#                      tested against this tenant, because outbound
+#                      requests to *.myworkdayjobs.com were blocked by the
+#                      sandbox this was built in. Check logs after the
+#                      first real run; remove this entry if it never
+#                      returns postings (see docs/adr/ADR-001).
+#   - PCL:            proprietary (careers.pcl.com + craftlink.pcl.com) --
+#                      no supported platform
+#   - Graham, Carlson, MNP, Sequeira Partners: no ATS platform identified;
+#     postings surface only on their own site and/or Indeed/LinkedIn/Glassdoor
+#   - Chandos, ASTRA, Style Developments, BAM: not confirmed either way
+#
+# How to find a Workday target's tenant/wd_host/site:
+#   Open the company's careers page, open browser devtools -> Network tab,
+#   filter for "wday/cxs", and look at the request URL:
+#   https://{tenant}.{wd_host}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs
+#   (jobs.ledcor.com should redirect or proxy to a URL like this -- the
+#   values that appear there are tenant, wd_host, and site).
+#
+# How to find a Greenhouse/Lever/Ashby/Workable slug:
+#   Greenhouse: their careers page URL is usually boards.greenhouse.io/<slug>
+#   Lever:      jobs.lever.co/<slug>
+#   Ashby:      jobs.ashbyhq.com/<slug>
+#   Workable:   apply.workable.com/<slug>
+#
+# - company: "Example Construction Co."
+#   board_type: greenhouse
+#   slug: examplecorp
+#
+# - company: "Example Workday Co."
+#   board_type: workday
+#   tenant: exampleco
+#   wd_host: wd1
+#   site: careers
+
+targets:
+  - company: "Ledcor"
+    board_type: workday
+    tenant: ledcor
+    wd_host: wd3
+    site: Ledcor_External
+    # Confirmed via multiple indexed job URLs (see note above). Confirm the
+    # CXS jobs endpoint itself in logs/run-*.log after the first real run.
+
+  - company: "Clark Builders"
+    board_type: workday
+    tenant: cbgoc
+    wd_host: wd3
+    site: cb
+    # UNVERIFIED -- see the note above. Confirm in logs/run-*.log after the
+    # first real run (look for "workday" collector entries), then delete
+    # this comment once it's proven to return postings.

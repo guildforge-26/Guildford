@@ -1,0 +1,37 @@
+### Secrets / local config ###
+.env
+briefing.txt
+*.token.json
+credentials.json
+token.json
+gmail_token.json
+
+### Data / runtime state (personal, not for git) ###
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+jobs.db
+logs/*.log
+alerts/*.md
+STOP
+
+### Python ###
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+### OS ###
+.DS_Store
+
+### Keep directory structure ###
+!data/.gitkeep
+!logs/.gitkeep
+!alerts/.gitkeep

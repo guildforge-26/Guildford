@@ -1,0 +1,94 @@
+# briefing.txt -- TEMPLATE, not your real briefing
+
+This mirrors the real structure Tommy's briefing.txt uses (Parts A-I),
+confirmed working with `scoring.py`. Copy this to `briefing.txt` (already
+gitignored) and replace every section with real, verified content if
+you're setting this system up for someone else, or need to reconstruct it.
+
+This entire file is sent to Claude verbatim as the system prompt for every
+scoring call (see docs/adr/ADR-002) -- `scoring.py` adds no formatting
+instructions of its own, so Part A (rules) and Part I (output schema) below
+are load-bearing, not just documentation. Keep them in the file.
+
+---
+
+==================================================
+PART A. ROLE AND RULES
+==================================================
+<Tell the model what it's doing (score one posting at a time against this
+candidate) and any standing rules: never invent facts, how to handle a
+missing salary, what to do if the posting text is too thin, tone/wording
+rules, what to do when the user message doesn't supply optional context
+(e.g. contact/access info, posting date, applicant count -- give an
+explicit default). End with: "Return strict JSON only, with no text before
+or after it and no markdown fences.">
+
+==================================================
+PART B. VERIFIED CANDIDATE FACTS
+==================================================
+<Name, location, credentials, clearances, availability. Compensation
+floors as HARD FILTERS -- e.g. a full-time annual floor and a separate
+fractional/interim monthly floor, since these often differ. Location
+preference in ranked order. Scale evidence relevant to the roles you're
+targeting (revenue run, team size led). Target industries.>
+
+==================================================
+PART C. CAREER HISTORY (USE THIS WORDING)
+==================================================
+<Real, verified work history with exact wording you want the model to
+reuse -- this becomes the source for "matching_facts" in every score.>
+
+==================================================
+PART D. SKILLS
+==================================================
+<Proven skills, sector familiarity, and anything that's a genuine
+differentiator (e.g. applied AI/automation experience) worth an explicit
+bonus in the scoring rubric.>
+
+==================================================
+PART E. HONEST GAPS (SCORE THESE DOWN WHEN A ROLE REQUIRES THEM)
+==================================================
+<What you don't have -- credentials, systems experience, scale. Be
+specific; this is what keeps scores honest instead of inflated.>
+
+==================================================
+PART F. WORDING RULES (CLAIMS TO USE AND CLAIMS TO AVOID)
+==================================================
+<Exact phrases to use for sensitive/nuanced claims, and exact claims to
+never make (overstatements, unconfirmed figures, claims that imply
+something untrue). Reference contacts, in priority order.>
+
+==================================================
+PART G. TARGET TRACKS (RANKED BY LIKELIHOOD OF SUCCESS)
+==================================================
+<Each track: a name, a number (1, 2, 3...), example titles, what makes a
+posting a strong fit, and the best resume version(s) for it. End with a
+starter list of employers to check for openings -- name them, but don't
+assume which ATS platform they use; that has to be verified separately
+(see targets.yaml).>
+
+==================================================
+PART H. MATCH SCORE (0 TO 100)
+==================================================
+<The scoring parts, each with a point weight that sums to 100 (e.g.
+requirements match, track/level fit, industry fit, location, compensation,
+access, timing/competition), plus any bonus (e.g. an AI/automation bonus)
+on top, capped at 100. Then HARD FILTERS: the exact, unambiguous
+conditions that mean automatic rejection regardless of score (comp floor,
+missing mandatory credential, company size ceiling, etc.) -- these should
+line up with config/tracks.yaml's disqualifying-phrase list where they're
+cheaply keyword-detectable. Then TIERS: the score bands and what each one
+means for action (e.g. A = apply today, B = apply this week, C = only via
+referral, below C = skip).>
+
+==================================================
+PART I. OUTPUT FORMAT (STRICT JSON)
+==================================================
+<The exact JSON shape you want back, as a literal example object --
+scoring.py's REQUIRED_TOP_LEVEL_KEYS must match this file's top-level keys
+exactly, so if you change this section, update
+src/jobalerts/scoring.py::REQUIRED_TOP_LEVEL_KEYS (and score_to_db_row's
+field mapping) to match. Include a short "Notes" section clarifying any
+field whose meaning isn't obvious from its name (e.g. what "track" values
+are valid, what "tier" values are valid, which field is set on a hard
+filter failure).>
