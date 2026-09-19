@@ -110,12 +110,20 @@ venv/bin/python -m pytest tests/ -v
 
 ## 4. Dry run with sample data
 
-Before touching any live source, you can exercise dedup/prefilter/scoring
-against the fixtures in `tests/fixtures/sample_postings.json` (five
-postings crafted to hit every case in `docs/test_plan.md` section 2:
-under $100k, requires a CPA, an ML Engineer title, an AI Ops role at a
-Calgary energy company, and a normal marketing role). See
-`docs/test_plan.md` for the exact walkthrough and what to check.
+Before touching any live source, exercise prefilter + live scoring against
+the fixtures in `tests/fixtures/sample_postings.json` (five postings
+crafted to hit every case in `docs/test_plan.md` section 2: under $100k,
+requires a CPA, an ML Engineer title, an AI Ops role at a Calgary energy
+company, and a normal marketing role):
+
+```bash
+venv/bin/python scripts/dry_run_scoring.py
+```
+
+This needs `briefing.txt` and `GEMINI_API_KEY` to actually score anything
+(postings that fail the cheap prefilter are reported without calling the
+model). See `docs/test_plan.md` for the exact walkthrough, what to check,
+and the real result from the first run of this test.
 
 ## 5. Check call volume against the free tier before scheduling
 

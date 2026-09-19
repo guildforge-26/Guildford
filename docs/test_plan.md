@@ -44,18 +44,14 @@ scheduling anything:
 
 1. **Run once by hand with sample data.**
    ```bash
-   venv/bin/python -c "
-   import json, sys; sys.path.insert(0, 'src')
-   from jobalerts.pipeline import _store_and_prefilter, _enrich_all, _score_all
-   # or: point collectors at tests/fixtures/sample_postings.json instead of
-   # live sources for a dry run -- see README 'Dry run with sample data'.
-   "
+   venv/bin/python scripts/dry_run_scoring.py
    ```
    Confirm it runs to completion and produces score rows without errors.
 
 2. **Show three scored postings with the full breakdown**, and check each
-   score against your own judgment of the fit. Use `jobs list today` or
-   read the `scores` table directly:
+   score against your own judgment of the fit. `dry_run_scoring.py` prints
+   the full breakdown for every fixture that passes the prefilter; you can
+   also read the `scores` table directly:
    ```bash
    venv/bin/python -c "
    import sys; sys.path.insert(0, 'src')
@@ -80,6 +76,25 @@ scheduling anything:
    - The two duplicate-representation cases in `test_dedupe.py` /
      `test_db.py` show the same job arriving via two sources collapses to
      one row.
+
+   **Result of the first real run (2026-09-19, gemini-3.6-flash, real
+   briefing.txt, live API key):** 4 of 5 fixtures behaved exactly as
+   above. The 5th (Prairie Sky Energy) initially scored Tier C / 64
+   instead of "HIGH" -- not a bug. Its fixture text at the time was a
+   single vague sentence with no concrete requirements, and briefing.txt
+   Part A explicitly says "if the posting text is too thin to score, set
+   verified to false and cap the tier at C." The model applied that rule
+   correctly; the fixture just wasn't rich enough to be judged on merit.
+   Fixed by rewriting the fixture with realistic posting detail
+   (responsibilities, requirements, comp range) -- rerun
+   `dry_run_scoring.py` after deleting `data/jobs.db` (or using a fresh
+   `DB_PATH`) to confirm it now scores in the A range. This is exactly
+   the kind of finding this test step exists to catch: it validates the
+   model is following the rubric literally, including edge-case rules,
+   rather than just "scoring things that sound impressive." One transient
+   Gemini 503 (server overload, not a code issue) was also observed and
+   recovered on its own -- worth knowing this can happen, not a concern by
+   itself unless it recurs frequently.
 
 4. **Only after Tommy approves the above, turn on the schedule**
    (`scripts/install_cron.sh`, then verify with `scripts/check_cron.sh`).
