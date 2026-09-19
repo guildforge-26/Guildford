@@ -1,0 +1,24 @@
+# ATS board targets checked every run for public job postings.
+#
+# Supported board_type values: greenhouse, lever, ashby, workable.
+# Each is a public JSON API meant for embedding job boards on a company's
+# careers page -- reading it is not scraping and doesn't touch LinkedIn or
+# Indeed's terms of service.
+#
+# TODO (Tommy): the build spec asks to seed this with "the Calgary
+# construction, development and advisory firms named in briefing.txt Part G"
+# -- briefing.txt wasn't available when this scaffold was built, so this
+# list is empty. Once you share briefing.txt (or just Part G), add entries
+# like the commented example below for each firm, then delete this note.
+#
+# How to find a company's board slug:
+#   Greenhouse: their careers page URL is usually boards.greenhouse.io/<slug>
+#   Lever:      jobs.lever.co/<slug>
+#   Ashby:      jobs.ashbyhq.com/<slug>
+#   Workable:   apply.workable.com/<slug>
+#
+# - company: "Example Construction Co."
+#   board_type: greenhouse
+#   slug: examplecorp
+
+targets: []

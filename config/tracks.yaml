@@ -1,0 +1,88 @@
+# Track keyword config for the cheap, pre-Claude-call title filter.
+#
+# PROVENANCE: these keyword lists are taken directly from the "SEARCH STRINGS
+# TO SET UP AS EMAIL ALERTS" section of the build spec (the boolean search
+# terms Tommy uses for his own LinkedIn/Indeed saved searches). They are a
+# reasonable placeholder for "does this title belong to one of my tracks?"
+# but the *scoring* rubric (weights, hard filters, the 7-part breakdown)
+# comes from briefing.txt, not from this file.
+#
+# TODO once briefing.txt is available: confirm these match Part A-F exactly,
+# and add any track-specific title variants briefing.txt calls out that
+# aren't in the spec's search-string appendix.
+tracks:
+  - id: track1
+    name: "Business Development / Growth"
+    title_keywords:
+      - "director of business development"
+      - "business development manager"
+      - "business development director"
+      - "client relationship director"
+      - "strategic partnerships"
+      - "pursuit manager"
+      - "growth director"
+      - "director of growth"
+
+  - id: track2
+    name: "Fractional / Interim CFO or COO"
+    title_keywords:
+      - "fractional cfo"
+      - "interim cfo"
+      - "fractional coo"
+      - "interim coo"
+      - "virtual cfo"
+      - "part-time cfo"
+      - "part time cfo"
+      - "fractional chief financial officer"
+      - "interim chief financial officer"
+
+  - id: track3
+    name: "COO / Operations / Chief of Staff (small co. or founder-led)"
+    title_keywords:
+      - "chief operating officer"
+      - "coo"
+      - "integrator"
+      - "director of operations"
+      - "general manager"
+      - "chief of staff"
+
+  - id: track4
+    name: "AI Operations / Transformation"
+    title_keywords:
+      - "ai operations"
+      - "ai transformation"
+      - "director of automation"
+      - "digital transformation"
+      - "ai implementation"
+      - "ai strategy"
+      - "fractional chief ai officer"
+      - "ai program manager"
+      - "head of ai"
+      - "vp of ai"
+
+# Titles that clearly belong to a different profession and should never
+# match a track even if a keyword above appears as a substring elsewhere
+# (kept short and conservative -- prefer a false pass-through to scoring
+# over a false drop; the model's hard-filter check is the real gate).
+title_exclude_keywords:
+  - "machine learning engineer"
+  - "ml engineer"
+  - "software engineer"
+  - "data engineer"
+  - "data scientist"
+  - "devops engineer"
+
+# Placeholder hard-filter disqualifiers, inferred from the build spec's own
+# test instructions ("confirm ... a posting that requires a CPA" should fail
+# hard filters). CONFIRM against briefing.txt Part B/C (hard filters) and
+# edit this list once the real briefing is available -- do not treat this
+# as verified fact about Tommy's credentials.
+hard_filters:
+  disqualifying_phrases:
+    - "must be a cpa"
+    - "cpa designation required"
+    - "cpa required"
+    - "must hold a cpa"
+    - "chartered professional accountant required"
+    - "cfa designation required"
+    - "cfa charter required"

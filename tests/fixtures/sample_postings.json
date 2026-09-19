@@ -1,0 +1,57 @@
+[
+  {
+    "title": "Director of Business Development",
+    "company": "Stonecrest Construction Group",
+    "location": "Calgary, AB",
+    "url": "https://boards.greenhouse.io/stonecrest/jobs/1001",
+    "salary_text": "$140,000 - $170,000",
+    "posted_at": "2026-09-18T12:00:00Z",
+    "source": "greenhouse",
+    "source_id": "1001",
+    "raw_text": "Stonecrest Construction Group is seeking a Director of Business Development to lead pursuit strategy across Western Canada..."
+  },
+  {
+    "title": "Fractional CFO",
+    "company": "Northgate Advisory",
+    "location": "Calgary, AB",
+    "url": "https://jobs.lever.co/northgate/2002",
+    "salary_text": "$110,000",
+    "posted_at": "2026-09-18T09:00:00Z",
+    "source": "lever",
+    "source_id": "2002",
+    "raw_text": "We need an interim CFO for a fast-growing advisory firm. Must be a CPA in good standing."
+  },
+  {
+    "title": "Machine Learning Engineer",
+    "company": "DataForge Inc.",
+    "location": "Calgary, AB",
+    "url": "https://jobs.ashbyhq.com/dataforge/3003",
+    "salary_text": "$135,000",
+    "posted_at": "2026-09-18T15:00:00Z",
+    "source": "ashby",
+    "source_id": "3003",
+    "raw_text": "Build and deploy ML models for our recommendation engine. Strong Python and PyTorch skills required."
+  },
+  {
+    "title": "Director of AI Operations",
+    "company": "Prairie Sky Energy",
+    "location": "Calgary, AB",
+    "url": "https://apply.workable.com/prairiesky/4004",
+    "salary_text": "$165,000",
+    "posted_at": "2026-09-18T18:00:00Z",
+    "source": "workable",
+    "source_id": "4004",
+    "raw_text": "Lead our AI transformation and automation program across upstream oil and gas operations, partnering with ops and finance leadership."
+  },
+  {
+    "title": "Junior Marketing Coordinator",
+    "company": "Acme Retail",
+    "location": "Calgary, AB",
+    "url": "https://boards.greenhouse.io/acmeretail/jobs/5005",
+    "salary_text": "$55,000",
+    "posted_at": "2026-09-18T10:00:00Z",
+    "source": "greenhouse",
+    "source_id": "5005",
+    "raw_text": "Entry-level marketing role supporting social media and events."
+  }
+]

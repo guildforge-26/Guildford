@@ -1,0 +1,73 @@
+# briefing.txt -- TEMPLATE, not your real briefing
+
+This is the structure `scoring.py` expects, based on the build spec's own
+description: "verified background, hard filters, target tracks and a 0 to
+100 match score method." Copy this file to `briefing.txt` (already
+gitignored -- it will never be committed) and replace every section with
+your real, verified content from `01_GPT_Briefing_and_Daily_Search.txt`.
+
+This entire file is sent to Claude as the system prompt for every scoring
+call (see docs/adr/ADR-002), so write it the way you'd want a sharp,
+literal-minded reviewer to read it: concrete facts, explicit rules, no
+inside jokes or context the model doesn't have.
+
+---
+
+## Part A: Verified Background
+
+<Your real work history, credentials, quantified achievements. Only
+verified facts -- this is what the model checks postings against.>
+
+## Part B: Hard Filters
+
+<Rules that mean an automatic "reject" regardless of score, e.g.
+credential requirements you don't meet, geography, compensation floor.
+NOTE: config/tracks.yaml currently has a placeholder disqualifying-phrase
+list (e.g. "must be a CPA") inferred from the build spec's own test
+instructions -- confirm it matches what you list here, or remove it if
+it's wrong.>
+
+## Part C: Target Tracks
+
+### Track 1: <name>
+<definition, example titles, what makes a posting a strong Track 1 fit>
+
+### Track 2: Fractional / Interim CFO or COO
+<definition, what makes a posting a strong Track 2 fit>
+
+### Track 3: <name>
+<definition, example titles, what makes a posting a strong Track 3 fit>
+
+### Track 4: AI Operations / Transformation
+<definition, what makes a posting a strong Track 4 fit, and what counts
+as "applied AI/automation experience" for the AI bonus>
+
+## Part D: Scoring Method (0-100)
+
+<Your seven-part breakdown: name each part, its point weight, and what
+earns full vs. partial vs. zero points. Also define the AI/automation
+bonus separately, and the tier bands (e.g. A >= 80, B 65-79, C/reject
+below that -- these should match ALERT_SCORE_A / ALERT_SCORE_B_MIN /
+TRACK2_ALERT_SCORE in .env).>
+
+## Part E: Resume Versions
+
+<The names of your resume versions and which track/situation each is for,
+so the model's "resume_version" field means something you can act on.>
+
+## Part F: Warm Outreach Angles
+
+<Any standing angles/connections/talking points the model should draw on
+when suggesting a "warm_angle" for a posting.>
+
+## Part G: Target Companies
+
+<Calgary construction, development and advisory firms (and any others)
+whose ATS boards should be checked every run. Add these to targets.yaml
+directly, in this format:
+
+targets:
+  - company: "Real Company Name"
+    board_type: greenhouse   # or lever, ashby, workable
+    slug: their-board-slug
+>
