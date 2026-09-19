@@ -46,11 +46,48 @@ def test_score_saved_once_and_marks_posting_scored(conn):
         verified=1, track="1", tier="A", total_score=85, breakdown_json="{}", hard_filter_passed=1,
         hard_filter_reason=None, matching_facts_json="[]", top_gaps_json="[]", resume_version="v1",
         warm_angle="angle", next_action="apply", ai_bonus_score=0, ai_bonus_notes=None,
-        model_used="claude-sonnet-5", input_tokens=100, output_tokens=50, cost_usd=0.001, raw_json="{}",
+        model_used="gemini-2.5-flash", input_tokens=100, output_tokens=50, cost_usd=0.0, raw_json="{}",
     )
     dbmod.save_score(conn, posting_id, row, "run1")
     assert dbmod.has_score(conn, posting_id) is True
     assert dbmod.get_posting(conn, posting_id)["status"] == "scored"
+
+
+def test_postings_needing_scoring_includes_enriched_and_errored(conn):
+    # A posting whose scoring call fails (e.g. a free-tier rate limit) must
+    # be retried on a later run -- dedupe means it can never be re-collected,
+    # so this is the only path back into the scoring queue for it.
+    enriched_id, _ = dbmod.upsert_posting(conn, _sample_posting(
+        source_id="1", title="Director of Operations", url="https://example.com/jobs/1"))
+    dbmod.set_posting_enriched(conn, enriched_id, "some posting text")
+
+    errored_id, _ = dbmod.upsert_posting(conn, _sample_posting(
+        source_id="2", title="Chief of Staff", url="https://example.com/jobs/2"))
+    dbmod.set_posting_enriched(conn, errored_id, "some other posting text")
+    dbmod.set_posting_status(conn, errored_id, "error", "429 rate limited")
+
+    needing = {r["id"] for r in dbmod.postings_needing_scoring(conn)}
+    assert needing == {enriched_id, errored_id}
+
+
+def test_postings_needing_scoring_excludes_scored_and_unenriched(conn):
+    scored_id, _ = dbmod.upsert_posting(conn, _sample_posting(
+        source_id="3", title="General Manager", url="https://example.com/jobs/3"))
+    dbmod.set_posting_enriched(conn, scored_id, "text")
+    dbmod.save_score(conn, scored_id, dict(
+        verified=1, track="3", tier="B", total_score=70, breakdown_json="{}", hard_filter_passed=1,
+        hard_filter_reason=None, matching_facts_json="[]", top_gaps_json="[]", resume_version="v1",
+        warm_angle="angle", next_action="apply", ai_bonus_score=0, ai_bonus_notes=None,
+        model_used="gemini-2.5-flash", input_tokens=100, output_tokens=50, cost_usd=0.0, raw_json="{}",
+    ), "run1")
+
+    unenriched_id, _ = dbmod.upsert_posting(conn, _sample_posting(
+        source_id="4", title="Growth Director", url="https://example.com/jobs/4"))
+    dbmod.set_posting_status(conn, unenriched_id, "prefiltered_out", "salary_below_minimum")
+
+    needing = {r["id"] for r in dbmod.postings_needing_scoring(conn)}
+    assert scored_id not in needing
+    assert unenriched_id not in needing
 
 
 def test_processed_emails_idempotent(conn):

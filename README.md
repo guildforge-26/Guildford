@@ -1,9 +1,10 @@
 # Job Alert System
 
 Reads Tommy's LinkedIn/Indeed job-alert emails plus public company job
-boards, scores every new posting against his real background with Claude,
-and pushes an alert on the strong ones within hours -- without scraping
-LinkedIn or Indeed, and without ever applying or messaging on his behalf.
+boards, scores every new posting against his real background with Gemini
+(free tier -- $0/call), and pushes an alert on the strong ones within
+hours -- without scraping LinkedIn or Indeed, and without ever applying or
+messaging on his behalf.
 
 See `docs/requirements.md` for what this does and why, `docs/adr/` for why
 it's built this way, and `docs/test_plan.md` for how to verify it before
@@ -68,18 +69,25 @@ venv/bin/python -m pytest tests/ -v
    - `"AI Implementation" OR "AI Strategy" OR "Fractional Chief AI Officer" OR "AI Program Manager"`
    - Add "oil and gas" OR energy OR construction OR legal variants of the above for Calgary employers.
 
-2. **Get an Adzuna API key**: register at https://developer.adzuna.com/,
+2. **Get a Gemini API key** (free tier, no credit card): go to
+   https://aistudio.google.com, sign in, click "Get API Key" -> "Create
+   API Key," and put it in `.env` as `GEMINI_API_KEY`. See
+   `docs/adr/ADR-006-scoring-model-gemini-free-tier.md` for why Gemini and
+   what "free" actually means here (rate limits, not a spend cap, are the
+   real constraint).
+
+3. **Get an Adzuna API key**: register at https://developer.adzuna.com/,
    create an app, put the app ID and key in `.env` as `ADZUNA_APP_ID` /
    `ADZUNA_APP_KEY`.
 
-3. **Choose an ntfy.sh topic**: pick a hard-to-guess private name (e.g.
+4. **Choose an ntfy.sh topic**: pick a hard-to-guess private name (e.g.
    `tg-jobs-8f2k1`) and set it as `NTFY_TOPIC` in `.env`. Install the ntfy
    app (iOS/Android) or use https://ntfy.sh/<your-topic> in a browser, and
    subscribe to that topic to receive pushes.
 
-4. **Authorize Gmail** (see section 3 below).
+5. **Authorize Gmail** (see section 3 below).
 
-5. **Fill in `targets.yaml`** with the Calgary construction, development
+6. **Fill in `targets.yaml`** with the Calgary construction, development
    and advisory firms from your briefing's Part G (see
    `briefing.txt.example` for the format).
 
@@ -109,15 +117,20 @@ under $100k, requires a CPA, an ML Engineer title, an AI Ops role at a
 Calgary energy company, and a normal marketing role). See
 `docs/test_plan.md` for the exact walkthrough and what to check.
 
-## 5. Estimate cost before scheduling
+## 5. Check call volume against the free tier before scheduling
+
+Gemini's free tier is $0/call, so there's no dollar cost to estimate --
+the real pre-launch question is whether this schedule's call volume fits
+the free tier's daily request limit:
 
 ```bash
 venv/bin/python scripts/estimate_cost.py
 ```
 
-Adjust `--postings-per-run` and `--cache-hit-rate` to match what you
-observe once real runs exist. Compare against `DAILY_SPEND_CAP_USD` /
-`MONTHLY_SPEND_CAP_USD` in `.env`.
+Adjust `--postings-per-run` and `--free-tier-rpd` (check
+ai.google.dev/gemini-api/docs/rate-limits for your model's current limit)
+to match what you observe once real runs exist. If it warns you're over
+budget, lower `MAX_MODEL_CALLS_PER_RUN` in `.env`.
 
 ## 6. Run the pre-launch tests, then turn on the schedule
 

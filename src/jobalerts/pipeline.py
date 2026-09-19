@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-import anthropic
+from google import genai
 
 from . import db as dbmod
 from .alerts.daily_log import append_alert_markdown
@@ -38,7 +38,15 @@ from .logging_utils import get_run_logger, log_fields
 from .prefilter import load_tracks_config, run_prefilter
 from .scoring import ScoringError, score_posting, score_to_db_row
 
-_ESTIMATED_COST_PER_CALL_USD = 0.02  # conservative pre-check ceiling; real cost is logged after each call
+# Gemini's free tier is $0/call, so the real cost.usd logged after every
+# call is always 0.0 -- meaning SpendGuard's cumulative daily/monthly spend
+# can never exceed a positive cap under real operation. This pre-flight
+# estimate reflects that honestly (0.0) rather than pretending a nonzero
+# per-call cost that would never actually be recorded; the guardrail stays
+# wired up as infrastructure in case a future paid model is configured
+# (see docs/adr/ADR-006-scoring-model-gemini-free-tier.md), but on the free
+# tier the real per-run limit is MAX_MODEL_CALLS_PER_RUN, not spend caps.
+_ESTIMATED_COST_PER_CALL_USD = 0.0
 
 _ATS_BOARD_TYPES = ("greenhouse", "lever", "ashby", "workable")
 
@@ -159,15 +167,27 @@ def _score_all(settings: Settings, conn, run_id: str, posting_ids: list[str], ti
         logger.error(f"briefing not found at {settings.briefing_path}, skipping scoring this run", extra=log_fields(event="briefing_missing"))
         errors.append("briefing_missing")
         return scored_ids
-    if not settings.anthropic_api_key:
-        logger.error("ANTHROPIC_API_KEY not set, skipping scoring this run", extra=log_fields(event="api_key_missing"))
-        errors.append("anthropic_api_key_missing")
+    if not settings.gemini_api_key:
+        logger.error("GEMINI_API_KEY not set, skipping scoring this run", extra=log_fields(event="api_key_missing"))
+        errors.append("gemini_api_key_missing")
         return scored_ids
 
     briefing_text = settings.briefing_path.read_text(encoding="utf-8")
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = genai.Client(api_key=settings.gemini_api_key)
     call_budget = ModelCallBudget(settings.max_model_calls_per_run)
     spend_guard = SpendGuard(conn, settings)
+
+    # Include postings whose scoring call failed on a previous run (e.g. a
+    # 429 from the free tier's rate limit) alongside this run's newly
+    # collected ones -- once a posting is in the DB, dedupe means it will
+    # never be re-collected, so if it's not retried here it would silently
+    # never get scored. This matters much more on a rate-limited free tier
+    # than it did with a paid API that rarely 429s.
+    retry_ids = [r["id"] for r in dbmod.postings_needing_scoring(conn) if r["id"] not in posting_ids]
+    if retry_ids:
+        logger.info(f"retrying {len(retry_ids)} posting(s) that failed to score on a previous run",
+                    extra=log_fields(event="retrying_previous_failures", count=len(retry_ids)))
+    posting_ids = list(posting_ids) + retry_ids
 
     for posting_id in posting_ids:
         timer.check()
@@ -194,7 +214,7 @@ def _score_all(settings: Settings, conn, run_id: str, posting_ids: list[str], ti
 
         posting = dbmod.get_posting(conn, posting_id)
         try:
-            result = score_posting(client, settings.claude_model, settings.pricing, briefing_text, dict(posting))
+            result = score_posting(client, settings.gemini_model, settings.pricing, briefing_text, dict(posting))
         except ScoringError as exc:
             call_budget.record_call()
             dbmod.set_posting_status(conn, posting_id, "error", str(exc))
@@ -204,7 +224,7 @@ def _score_all(settings: Settings, conn, run_id: str, posting_ids: list[str], ti
 
         call_budget.record_call()
         spend_guard.record(run_id, posting_id, result.cost_usd)
-        row = score_to_db_row(result, settings.claude_model)
+        row = score_to_db_row(result, settings.gemini_model)
         dbmod.save_score(conn, posting_id, row, run_id)
         scored_ids.append(posting_id)
         counts["scored"] = counts.get("scored", 0) + 1

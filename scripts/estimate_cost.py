@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
-"""Estimates scoring cost per run and per month BEFORE you turn on the
-schedule. Adjust the assumptions below (or pass them as flags) to match
-reality once you've seen a few real runs' token counts in the logs.
+"""Estimates scoring call volume per run and per day BEFORE you turn on the
+schedule, and checks it against Gemini's free-tier rate limit.
+
+Scoring itself is $0/call on the free tier (see
+docs/adr/ADR-006-scoring-model-gemini-free-tier.md), so there's no dollar
+cost to estimate anymore. The real pre-launch question is different: will
+this schedule's call volume fit inside the free tier's requests-per-day
+quota? Google's published free-tier RPD numbers for gemini-2.5-flash have
+varied across sources and over time, so this defaults to a conservative
+assumption you should adjust to whatever ai.google.dev/gemini-api/docs/rate-limits
+shows for your model on the day you read it.
 
 Usage:
     python scripts/estimate_cost.py
-    python scripts/estimate_cost.py --postings-per-run 8 --cache-hit-rate 0.7
+    python scripts/estimate_cost.py --postings-per-run 8 --free-tier-rpd 1000
 """
 import argparse
 import sys
@@ -16,51 +24,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from jobalerts.config import get_settings  # noqa: E402
 
 RUNS_PER_DAY = 6  # every 4 hours
-DAYS_PER_MONTH = 30
-
-# Rough token-size assumptions for one scoring call (see docs/adr/ADR-002).
-SYSTEM_PROMPT_TOKENS = 1800  # briefing.txt + instructions, identical every call -> cacheable
-POSTING_TOKENS = 2200        # enriched posting text + fields
-OUTPUT_TOKENS = 600          # the JSON response
 
 
-def estimate(postings_per_run: float, cache_hit_rate: float) -> dict:
+def estimate(postings_per_run: float, free_tier_rpd: int) -> dict:
     settings = get_settings()
-    pricing = settings.pricing
-
-    # First call of a run: system prompt is a fresh cache write.
-    # Later calls in the same run (and calls in later runs within the cache
-    # TTL): system prompt is served from cache at cache_hit_rate.
-    def call_cost(is_cache_write: bool, is_cache_hit: bool) -> float:
-        input_cost = (POSTING_TOKENS / 1_000_000) * pricing["input_per_mtok"]
-        output_cost = (OUTPUT_TOKENS / 1_000_000) * pricing["output_per_mtok"]
-        if is_cache_write:
-            sys_cost = (SYSTEM_PROMPT_TOKENS / 1_000_000) * pricing["input_per_mtok"] * pricing["cache_write_5m_multiplier"]
-        elif is_cache_hit:
-            sys_cost = (SYSTEM_PROMPT_TOKENS / 1_000_000) * pricing["input_per_mtok"] * pricing["cache_read_multiplier"]
-        else:
-            sys_cost = (SYSTEM_PROMPT_TOKENS / 1_000_000) * pricing["input_per_mtok"]
-        return input_cost + output_cost + sys_cost
-
-    first_call = call_cost(is_cache_write=True, is_cache_hit=False)
-    later_call_hit = call_cost(is_cache_write=False, is_cache_hit=True)
-    later_call_miss = call_cost(is_cache_write=False, is_cache_hit=False)
-    later_call_avg = cache_hit_rate * later_call_hit + (1 - cache_hit_rate) * later_call_miss
-
-    remaining = max(postings_per_run - 1, 0)
-    per_run_cost = first_call + remaining * later_call_avg if postings_per_run > 0 else 0.0
-    per_day_cost = per_run_cost * RUNS_PER_DAY
-    per_month_cost = per_day_cost * DAYS_PER_MONTH
+    calls_per_run = min(postings_per_run, settings.max_model_calls_per_run)
+    calls_per_day = calls_per_run * RUNS_PER_DAY
 
     return {
-        "model": settings.claude_model,
-        "per_call_first": first_call,
-        "per_call_later_avg": later_call_avg,
-        "per_run": per_run_cost,
-        "per_day": per_day_cost,
-        "per_month": per_month_cost,
-        "daily_cap": settings.daily_spend_cap_usd,
-        "monthly_cap": settings.monthly_spend_cap_usd,
+        "model": settings.gemini_model,
+        "calls_per_run": calls_per_run,
+        "max_calls_per_run_setting": settings.max_model_calls_per_run,
+        "calls_per_day": calls_per_day,
+        "free_tier_rpd": free_tier_rpd,
+        "headroom_pct": (1 - calls_per_day / free_tier_rpd) * 100 if free_tier_rpd else None,
     }
 
 
@@ -68,25 +45,36 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--postings-per-run", type=float, default=5.0,
                          help="Average NEW postings scored per 4-hour run after dedupe/prefilter (default: 5)")
-    parser.add_argument("--cache-hit-rate", type=float, default=0.6,
-                         help="Fraction of non-first calls that hit the system-prompt cache (default: 0.6)")
+    parser.add_argument("--free-tier-rpd", type=int, default=250,
+                         help="Your model's free-tier requests-per-day limit -- check "
+                              "ai.google.dev/gemini-api/docs/rate-limits and adjust this (default: 250, "
+                              "a conservative figure for gemini-2.5-flash as of when this was written)")
     args = parser.parse_args()
 
-    result = estimate(args.postings_per_run, args.cache_hit_rate)
+    result = estimate(args.postings_per_run, args.free_tier_rpd)
 
-    print(f"Model: {result['model']}")
+    print(f"Model: {result['model']} (free tier, $0/call)")
     print(f"Assumptions: {args.postings_per_run:.1f} postings scored per run, {RUNS_PER_DAY} runs/day, "
-          f"{args.cache_hit_rate:.0%} cache-hit rate on non-first calls per run")
+          f"MAX_MODEL_CALLS_PER_RUN={result['max_calls_per_run_setting']}")
     print()
-    print(f"  First call in a run (cache write):  ${result['per_call_first']:.4f}")
-    print(f"  Later calls, avg w/ cache hits:      ${result['per_call_later_avg']:.4f}")
-    print(f"  Estimated cost per run:              ${result['per_run']:.4f}")
-    print(f"  Estimated cost per day:              ${result['per_day']:.2f}   (cap: ${result['daily_cap']:.2f})")
-    print(f"  Estimated cost per month:             ${result['per_month']:.2f}   (cap: ${result['monthly_cap']:.2f})")
+    print(f"  Estimated calls per run:   {result['calls_per_run']:.1f}")
+    print(f"  Estimated calls per day:   {result['calls_per_day']:.0f}")
+    print(f"  Assumed free-tier RPD:     {result['free_tier_rpd']}")
+    if result["headroom_pct"] is not None:
+        if result["headroom_pct"] >= 0:
+            print(f"  Headroom:                  {result['headroom_pct']:.0f}% under the daily limit")
+        else:
+            print(f"  OVER BUDGET by {-result['headroom_pct']:.0f}% -- lower MAX_MODEL_CALLS_PER_RUN "
+                  f"in .env, or the postings-per-run assumption is too high")
     print()
-    print("These are pre-launch estimates from assumed token sizes. Once real runs")
-    print("have happened, prefer actual numbers from `jobs list today` / the runs")
-    print("table / logs/*.log, which log real cost_usd per call.")
+    print("Also relevant: the free tier has a PER-MINUTE limit too, so a run that fires")
+    print("many calls back-to-back can 429 well before the daily count is reached. A")
+    print("failed call is retried automatically on the next run (see")
+    print("db.py::postings_needing_scoring), so occasional 429s are not data loss --")
+    print("but frequent ones mean MAX_MODEL_CALLS_PER_RUN should come down.")
+    print()
+    print("Once real runs exist, check actual call counts against real 429s in")
+    print("logs/*.log rather than trusting this pre-launch estimate.")
 
 
 if __name__ == "__main__":

@@ -21,26 +21,28 @@ tested, and iterated on the code against those specifications.
 
 ## Approach
 
-<1-2 paragraphs: sources chosen and why (link ADR-001), how scoring
-works (link ADR-002), what "alert" means at each tier.>
+<1-2 paragraphs: sources chosen and why (link ADR-001), how scoring works
+(link ADR-006 -- Gemini's free tier, and why it replaced the original
+Claude-based design in ADR-002), what "alert" means at each tier.>
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    A[Gmail alert emails] --> E[Collect]
-    B[ATS boards] --> E
-    C[Adzuna] --> E
-    D[Job Bank / GC feeds] --> E
-    E --> F[Dedupe]
-    F --> G[Cheap prefilter]
-    G --> H[Enrich]
-    H --> I[Score: Claude]
-    I --> J[(SQLite)]
-    J --> K{Score >= threshold?}
-    K -->|>=80, or >=70 Track 2| L[ntfy push]
-    K -->|65-79| M[Digest draft]
-    K --> N[alerts/*.md log]
+    A[Gmail alert emails] --> F[Collect]
+    B[ATS boards] --> F
+    C[Workday] --> F
+    D[Adzuna] --> F
+    E[Job Bank / GC feeds] --> F
+    F --> G[Dedupe]
+    G --> H[Cheap prefilter]
+    H --> I[Enrich]
+    I --> J[Score: Gemini, free tier]
+    J --> K[(SQLite)]
+    K --> L{Score >= threshold?}
+    L -->|>=80, or >=70 Track 2| M[ntfy push]
+    L -->|65-79| N[Digest draft]
+    L --> O[alerts/*.md log]
 ```
 
 ## Guardrails

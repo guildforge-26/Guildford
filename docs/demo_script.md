@@ -7,8 +7,10 @@ record against as soon as at least one real alert has fired.
 ## 0:00-0:20 -- Cold open
 "This is a job-alert system I directed Claude Code to build: it reads my
 LinkedIn and Indeed alert emails plus public company job boards, scores
-every posting against my real background, and pushes me an alert within
-hours -- without ever scraping LinkedIn/Indeed or applying on my behalf."
+every posting against my real background using Gemini's free API, and
+pushes me an alert within hours -- without ever scraping LinkedIn/Indeed
+or applying on my behalf. Claude Code wrote and tested the whole thing;
+Gemini is what actually reads each posting and scores it, at zero cost."
 
 ## 0:20-1:00 -- An alert arriving
 Show a real ntfy push notification landing on screen (score >= 80).
@@ -23,11 +25,14 @@ my actual background, with a paper trail."
 
 ## 1:45-2:30 -- Guardrails, live
 - Show `scripts/check_cron.sh` output (schedule installed, recent runs).
-- Show `data/spend_ledger` total for the day/month next to the caps in
-  `.env`.
+- Run `scripts/estimate_cost.py`: "$0/call on Gemini's free tier -- the
+  actual limit isn't dollars, it's the free tier's daily request quota,
+  which this stays comfortably under."
 - Create a `STOP` file, run the pipeline by hand, show it halts
   immediately and logs why. Delete the `STOP` file.
-- Point at `docs/adr/ADR-003-guardrails-and-safety.md` for the full list.
+- Point at `docs/adr/ADR-003-guardrails-and-safety.md` for the full list,
+  and `docs/adr/ADR-006-scoring-model-gemini-free-tier.md` for why the
+  scoring engine moved to Gemini and what changed as a result.
 
 ## 2:30-2:50 -- The tracker
 `jobs list today`, `jobs applied <id>`, `jobs list due` -- show a

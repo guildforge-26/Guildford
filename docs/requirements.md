@@ -120,6 +120,9 @@ blocked by this environment's network egress policy, so neither could be
 tested end-to-end here (see ADR-001).
 
 Still outstanding before scheduling: the manual pre-launch run against a
-live Claude API key (docs/test_plan.md §2), which needs to happen on a
-machine/session with `ANTHROPIC_API_KEY` set -- it wasn't available in the
-session that built this scaffold.
+live Gemini API key (docs/test_plan.md §2), which needs to happen on a
+machine/session with `GEMINI_API_KEY` set -- it wasn't available in the
+session that built this scaffold. Scoring itself moved from Claude to the
+Gemini free tier partway through this build -- see
+docs/adr/ADR-006-scoring-model-gemini-free-tier.md for why and what
+changed.

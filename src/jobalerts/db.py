@@ -96,6 +96,20 @@ def postings_collected_between(conn: sqlite3.Connection, start_iso: str, end_iso
     ).fetchall()
 
 
+def postings_needing_scoring(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Postings that are enriched (or failed enrichment) but were never
+    successfully scored -- includes ones whose scoring call errored on a
+    previous run. Dedupe means a posting is only ever collected once, so
+    without this a scoring failure would otherwise go unretried forever."""
+    return conn.execute(
+        """
+        SELECT p.* FROM postings p
+        LEFT JOIN scores s ON s.posting_id = p.id
+        WHERE p.status IN ('enriched', 'enrich_failed', 'error') AND s.posting_id IS NULL
+        """
+    ).fetchall()
+
+
 # --- scores ---------------------------------------------------------------
 
 def has_score(conn: sqlite3.Connection, posting_id: str) -> bool:

@@ -1,18 +1,27 @@
-"""Calls Claude to score one posting against briefing.txt.
+"""Calls Gemini (free tier) to score one posting against briefing.txt.
 
-Design choices (see docs/adr/ADR-002-scoring-model-and-cost.md):
-- briefing.txt is sent as the cached system prompt (identical on every call
-  within a run, so cache_control makes every call after the first ~90%
-  cheaper on that portion).
-- The model is asked to return raw JSON only (no tool-use, no structured
-  outputs beta) so this works against any anthropic SDK >=0.40 without
-  depending on a specific structured-output API shape.
-- Thinking is explicitly disabled: this is a bounded extraction/classification
-  task against a fixed rubric, not open-ended reasoning, so adaptive
-  thinking would only add latency and cost.
+Design choices (see docs/adr/ADR-006-scoring-model-gemini-free-tier.md):
+- briefing.txt is sent as-is as the system_instruction. Part A already says
+  "return strict JSON only... no markdown fences" and Part I spells out the
+  schema, so this module adds no separate formatting instructions of its
+  own -- nothing here can drift out of sync with the real rubric.
+- response_mime_type="application/json" puts the model in native JSON mode,
+  which is stronger than a prompt instruction alone; _extract_json's
+  fence-stripping/brace-scanning fallback stays in place as defense in
+  depth, since JSON mode guarantees syntactically valid JSON but not
+  schema-valid JSON (a model can still emit valid JSON missing a field).
+- Thinking is explicitly disabled (thinking_budget=0): this is a bounded
+  extraction/classification task against a fixed rubric, not open-ended
+  reasoning, so it would only add latency and token usage against the free
+  tier's per-minute token quota for no quality gain here.
+- No prompt caching: Claude's design cached briefing.txt because caching
+  saved real money. On the Gemini free tier every call is already $0, so
+  the caching machinery was dropped rather than ported -- it would add
+  complexity (Gemini's context-caching API is a different, heavier
+  feature: explicit cache objects with their own lifecycle) for no benefit.
 - This module never touches the database or decides whether to call the
-  model at all -- the pipeline checks db.has_score() and the call/spend
-  budgets before calling score_posting(), so this stays pure and testable.
+  model at all -- the pipeline checks db.has_score() and the call budget
+  before calling score_posting(), so this stays pure and testable.
 """
 from __future__ import annotations
 
@@ -21,7 +30,8 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-import anthropic
+from google import genai
+from google.genai import errors, types
 
 # Exactly briefing.txt Part I's top-level keys. briefing.txt is the full
 # system prompt as-is (Part A already says "return strict JSON only... no
@@ -55,8 +65,6 @@ class ScoreResult:
     data: dict
     input_tokens: int
     output_tokens: int
-    cache_creation_input_tokens: int
-    cache_read_input_tokens: int
     cost_usd: float
 
 
@@ -112,18 +120,31 @@ def _validate(data: dict) -> None:
         raise ScoringError(f"hard_filter_failed=true must carry tier='skip', got {data.get('tier')!r}")
 
 
-def compute_cost_usd(usage, pricing: dict) -> float:
-    input_cost = (usage.input_tokens / 1_000_000) * pricing["input_per_mtok"]
-    output_cost = (usage.output_tokens / 1_000_000) * pricing["output_per_mtok"]
-    cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
-    cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
-    cache_write_cost = (cache_write / 1_000_000) * pricing["input_per_mtok"] * pricing["cache_write_5m_multiplier"]
-    cache_read_cost = (cache_read / 1_000_000) * pricing["input_per_mtok"] * pricing["cache_read_multiplier"]
-    return round(input_cost + output_cost + cache_write_cost + cache_read_cost, 6)
+def compute_cost_usd(usage_metadata, pricing: dict) -> float:
+    input_tokens = getattr(usage_metadata, "prompt_token_count", 0) or 0
+    output_tokens = getattr(usage_metadata, "candidates_token_count", 0) or 0
+    input_cost = (input_tokens / 1_000_000) * pricing["input_per_mtok"]
+    output_cost = (output_tokens / 1_000_000) * pricing["output_per_mtok"]
+    return round(input_cost + output_cost, 6)
+
+
+def _generate(client: genai.Client, model: str, system_prompt: str, contents: str) -> types.GenerateContentResponse:
+    try:
+        return client.models.generate_content(
+            model=model,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            ),
+        )
+    except errors.APIError as exc:
+        raise ScoringError(f"Gemini API error: {exc}") from exc
 
 
 def score_posting(
-    client: anthropic.Anthropic,
+    client: genai.Client,
     model: str,
     pricing: dict,
     briefing_text: str,
@@ -137,50 +158,28 @@ def score_posting(
 
     last_error: Optional[Exception] = None
     for attempt in range(1, max_json_retries + 2):
-        messages = [{"role": "user", "content": user_message}]
+        contents = user_message
         if attempt > 1:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": (
-                        "Your previous reply was not valid JSON matching the required schema. "
-                        "Reply again with ONLY the JSON object, nothing else."
-                    ),
-                }
+            contents += (
+                "\n\nYour previous reply was not valid JSON matching the required schema. "
+                "Reply again with ONLY the JSON object, nothing else."
             )
-        try:
-            response = client.messages.create(
-                model=model,
-                max_tokens=2048,
-                thinking={"type": "disabled"},
-                system=[
-                    {
-                        "type": "text",
-                        "text": system_prompt,
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                ],
-                messages=messages,
-            )
-        except anthropic.APIStatusError as exc:
-            raise ScoringError(f"Claude API error: {exc}") from exc
 
-        text = "".join(block.text for block in response.content if block.type == "text")
+        response = _generate(client, model, system_prompt, contents)
+
         try:
-            data = _extract_json(text)
+            data = _extract_json(response.text or "")
             _validate(data)
         except (ScoringError, json.JSONDecodeError) as exc:
             last_error = exc
             continue
 
-        cost_usd = compute_cost_usd(response.usage, pricing)
+        usage = response.usage_metadata
         return ScoreResult(
             data=data,
-            input_tokens=response.usage.input_tokens,
-            output_tokens=response.usage.output_tokens,
-            cache_creation_input_tokens=getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
-            cache_read_input_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
-            cost_usd=cost_usd,
+            input_tokens=getattr(usage, "prompt_token_count", 0) or 0,
+            output_tokens=getattr(usage, "candidates_token_count", 0) or 0,
+            cost_usd=compute_cost_usd(usage, pricing),
         )
 
     raise ScoringError(f"gave up after {max_json_retries + 1} attempts, last error: {last_error}")
@@ -213,26 +212,16 @@ def build_fractional_scan_system_prompt(briefing_text: str) -> str:
 
 
 def scan_for_fractional_leads(
-    client: anthropic.Anthropic, model: str, pricing: dict, briefing_text: str, postings_summary: str,
+    client: genai.Client, model: str, pricing: dict, briefing_text: str, postings_summary: str,
 ) -> FractionalScanResult:
     system_prompt = build_fractional_scan_system_prompt(briefing_text)
-    try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=2048,
-            thinking={"type": "disabled"},
-            system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": postings_summary}],
-        )
-    except anthropic.APIStatusError as exc:
-        raise ScoringError(f"Claude API error: {exc}") from exc
+    response = _generate(client, model, system_prompt, postings_summary)
 
-    text = "".join(block.text for block in response.content if block.type == "text")
-    data = _extract_json(text)
+    data = _extract_json(response.text or "")
     if "flagged" not in data or not isinstance(data["flagged"], list):
         raise ScoringError(f"fractional scan response missing 'flagged' list: {data!r}")
 
-    return FractionalScanResult(flagged=data["flagged"], cost_usd=compute_cost_usd(response.usage, pricing))
+    return FractionalScanResult(flagged=data["flagged"], cost_usd=compute_cost_usd(response.usage_metadata, pricing))
 
 
 def score_to_db_row(result: ScoreResult, model: str) -> dict:

@@ -23,7 +23,7 @@ def settings(tmp_path):
         lock_path=tmp_path / "pipeline.lock",
         stop_path=tmp_path / "STOP",
         ntfy_topic="",
-        anthropic_api_key="",
+        gemini_api_key="",
         max_model_calls_per_run=5,
         max_retries_per_source=2,
         run_timeout_seconds=1200,

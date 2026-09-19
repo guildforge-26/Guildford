@@ -18,8 +18,9 @@ Covers the pure, dependency-free logic:
   posting requiring a CPA, a Machine Learning Engineer title, and an AI
   Operations posting at a Calgary energy company.
 - `test_scoring.py` -- JSON extraction/validation from a (mocked) model
-  response, cost math including cache write/read multipliers, DB-row
-  shaping. Does not call the live API.
+  response, cost math (always $0 on the Gemini free tier, tested generically
+  in case this ever points at a paid model), DB-row shaping. Does not call
+  the live API.
 - `test_guardrails.py` -- STOP file, run lock (concurrent-run rejection),
   wall-clock timeout, retry helper, model-call budget, circuit breaker
   trip/reset, spend-cap enforcement.
@@ -36,7 +37,7 @@ These run with no API key, no `briefing.txt`, and no network access, so
 they're safe to run anywhere, anytime, including in CI.
 
 ## 2. Manual pre-launch tests (run once by hand, with `briefing.txt` and a
-   real `ANTHROPIC_API_KEY` in place, BEFORE turning on the cron schedule)
+   real `GEMINI_API_KEY` in place, BEFORE turning on the cron schedule)
 
 This is what the build spec asks Tommy to see and approve before
 scheduling anything:
@@ -89,8 +90,13 @@ scheduling anything:
   immediately and logs it.
 - Start two runs back to back and confirm the second exits immediately
   with `skipped_lock_held` instead of racing the first.
-- Set `DAILY_SPEND_CAP_USD` very low temporarily and confirm scoring stops
-  (with an alert) while collection keeps working.
+- Set `MAX_MODEL_CALLS_PER_RUN=1` temporarily and confirm scoring stops
+  after one call (`call_budget_exhausted` in the logs) while collection
+  keeps working -- this is the guardrail that actually matters on a free,
+  rate-limited API. (`DAILY_SPEND_CAP_USD`/`MONTHLY_SPEND_CAP_USD` are kept
+  as infrastructure but can't be drilled meaningfully: Gemini's free tier
+  is $0/call, so real recorded spend never grows and the cap can't trip --
+  see ADR-006.)
 - Point a collector at a bad URL/target and confirm the circuit breaker
   trips after `CIRCUIT_BREAKER_FAILURE_THRESHOLD` failures and the run
   still completes for the other sources.

@@ -1,7 +1,13 @@
 # ADR-002: Scoring model, prompt design, and cost
 
 ## Status
-Accepted
+Superseded by [ADR-006](ADR-006-scoring-model-gemini-free-tier.md) -- kept
+as the historical record of the original Claude-based design. Tommy chose
+to switch to Gemini's free tier partway through the build, primarily for
+cost (free vs. ~$11/month); this document's reasoning about prompt
+structure, hard filters, and tier bands still applies conceptually, but
+the model, SDK, caching approach, and cost figures below are no longer
+what the code does. Do not use this for current behavior -- see ADR-006.
 
 ## Context
 Every new posting that survives the cheap prefilter needs to be scored

@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-import anthropic  # noqa: E402
+from google import genai  # noqa: E402
 
 from jobalerts import db as dbmod  # noqa: E402
 from jobalerts import timeutil  # noqa: E402
@@ -57,8 +57,8 @@ def main() -> int:
             dbmod.finish_run(conn, run_id, "success", {"postings_reviewed": 0}, 0.0, [])
             return 0
 
-        if not settings.briefing_path.exists() or not settings.anthropic_api_key:
-            logger.error("briefing.txt or ANTHROPIC_API_KEY missing, skipping fractional scan", extra=log_fields(event="missing_prereqs"))
+        if not settings.briefing_path.exists() or not settings.gemini_api_key:
+            logger.error("briefing.txt or GEMINI_API_KEY missing, skipping fractional scan", extra=log_fields(event="missing_prereqs"))
             dbmod.finish_run(conn, run_id, "failed", {"postings_reviewed": len(postings)}, 0.0, ["missing_prereqs"])
             return 1
 
@@ -68,9 +68,9 @@ def main() -> int:
             for p in postings
         )
 
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        client = genai.Client(api_key=settings.gemini_api_key)
         try:
-            result = scan_for_fractional_leads(client, settings.claude_model, settings.pricing, briefing_text, summary)
+            result = scan_for_fractional_leads(client, settings.gemini_model, settings.pricing, briefing_text, summary)
         except ScoringError as exc:
             logger.error(f"fractional scan failed: {exc}", extra=log_fields(event="scan_failed"))
             dbmod.finish_run(conn, run_id, "failed", {"postings_reviewed": len(postings)}, 0.0, [str(exc)])
