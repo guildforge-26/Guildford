@@ -1,132 +1,70 @@
-# PROJECT BLUEPRINT — Guildford
+# Project Blueprint: Executive OS
 
-## 1. Product Vision
+## 1. Project Identity (The “What & Why”)
+- **Project Name**: Executive OS (Autonomous Mid-Market Operating Engine)
+- **One-sentence purpose**: A conversational AI operating system that interviews a CEO to build their accountability chart, 5 core responsibilities, and KPIs from first principles, then tracks execution.
+- **Who is this for**: CEOs, COOs, and fractional operators managing mid-market professional services firms (law, accounting, engineering).
+- **Main problem it removes**: Eliminates messy manual setup and data silos, replacing accidental management with an automated operational rhythm.
+- **Success looks like**: I can open the app, run a 7-step onboarding chat with Gemini to set up a company's structure, view the generated Accountability Chart and Scorecard, and test live operational tracking—all under 5 minutes.
 
-Guildford is a **Level 2 Executive OS**: a local-first personal command center
-that helps a single executive/founder triage information, track decisions and
-commitments, and get AI-assisted judgment on demand — without handing data to
-a third-party cloud service beyond the model calls the user explicitly makes.
+## 2. Core Features (The “What the User Can Do”)
+| # | Feature Name | What the user can do (in plain English) | Must have for launch? |
+|---|--------------|--------------------------------ov-----------------------|-----------------------|
+| 1 | Conversational Onboarding Engine | Chat with a Gemini-powered agent through the 7-step sequence (Problem, Solution, Revenue, Seats, 5 Responsibilities, KPIs). | Yes |
+| 2 | Accountability & Scorecard Visualizer | View the dynamically generated organizational accountability chart and weekly KPI scorecard based on the onboarding chat. | Yes |
+| 3 | Operational "IDS" Triage & Weekly Review | Input weekly scorecard metrics and qualitative roadblocks to let Gemini cluster bottlenecks and output an executive briefing packet. | Yes |
+| 4 | Action Item & Loop Tracker | Log commitments extracted from weekly reviews with a hard 7-day tracking clock. | Yes |
 
-### Level definitions (roadmap framing)
+## 3. User Journey (The Happy Path)
+1. User opens the app and lands on a clean executive command dashboard.
+2. User clicks "Initialize Company" to start the conversational onboarding Q&A.
+3. User types answers to Gemini regarding the company's problem, revenue model, and core seats.
+4. User sees the app instantly compile and render the Accountability Chart and KPI Scorecard.
+5. User can then navigate to the Weekly Review tab to input updates and view AI-synthesized operational bottlenecks.
 
-| Level | Description |
-|---|---|
-| **Level 0** | Static notes / spreadsheets. No structure, no assistance. |
-| **Level 1** | Structured dashboard. Data is organized (tasks, notes, calendar) but there is no reasoning layer — the user does all synthesis themselves. |
-| **Level 2 (this project)** | Structured dashboard **+ an LLM reasoning layer** (Gemini) that summarizes, drafts, prioritizes, and flags — but every consequential action requires explicit human approval. The system suggests; it does not act autonomously. |
-| **Level 3 (future, out of scope now)** | Bounded autonomous execution — the assistant can take pre-approved classes of action (e.g. send a drafted email) without a human in the loop for each instance. |
+## 4. Data the App Must Remember (SQLite Schema)
+- **Companies**: id, name, problem_statement, solution, revenue_model, created_at
+- **Seats**: id, company_id, seat_name, description
+- **Responsibilities**: id, seat_id, description_1 to 5
+- **KPIs**: id, seat_id, kpi_name, target_metric
+- **Scorecards**: id, kpi_id, week_date, actual_value, status (Green/Red)
+- **ActionItems**: id, company_id, owner_seat_id, task_description, due_date, status (Open/Closed)
 
-Guildford targets Level 2 only. Anything that would push the system toward
-autonomous action without per-instance human approval is a Level 3 feature
-and is explicitly **out of scope** until a deliberate, separate decision is
-made to move up a level (see AGENTS.md §6, Amendment Process).
+*Login required?* No (Local single-tenant instance for interviews and fractional client deployment).
 
-## 2. Core Tech Stack
+## 5. Screens / Pages the App Needs (Streamlit Tabs)
+1. **Executive Dashboard**: High-level ecosystem health view, red metrics counter, and quick status summaries.
+2. **Setup & Onboarding Chat**: Conversational interface powering the 7-step structural interview.
+3. **Accountability & Scorecard**: Visual grid showing seats, 5 responsibilities, and weekly KPIs.
+4. **Weekly Review & IDS**: AI synthesis tool that parses friction points and generates executive action briefs.
 
-| Layer | Choice | Why |
-|---|---|---|
-| UI | **Streamlit** | Fast to build and iterate on a single-user internal tool; Python-native, no separate frontend build/deploy pipeline. |
-| Storage | **Local SQLite** (single file, e.g. `data/guildford.db`) | Zero-ops, file-based, trivially backed up, no network dependency, keeps the user's data on their own machine. |
-| Reasoning | **Gemini API** | Used only for specific, bounded reasoning tasks (summarization, drafting, prioritization, Q&A over the user's own data) — never as an implicit background agent. |
-| Language/runtime | Python 3.11+ | Matches Streamlit and the broader ecosystem of the SQLite/Gemini client libraries. |
+## 6. Look & Feel (Simple Design Rules)
+- **Overall style**: Clean, professional, executive-grade dark/light minimal layout.
+- **Main colors**: Slate gray, executive navy, crisp white, subtle status indicators (emerald green / alert red).
+- **Must work on**: Desktop and Tablet (optimized for executive walkthroughs).
+- **Branding**: None (clean custom utility).
+- **Things to avoid**: Cluttered dashboards, overly playful widgets, bright neon colors.
 
-No other database, message queue, background worker framework, or cloud
-storage/service is part of the stack unless AGENTS.md's amendment process is
-followed.
+## 7. Technical Decisions
+- **Frontend & Backend**: Python + Streamlit (unified full-stack framework).
+- **Database**: SQLite (via Python built-in `sqlite3` library, zero configuration).
+- **AI Engine**: Google GenAI SDK (`google-genai`) using Gemini models.
+- **Hosting**: Streamlit Community Cloud (Free public/private URL hosting via GitHub sync).
+- **Authentication**: None needed for local execution / portfolio demos.
 
-## 3. System Architecture
+## 8. What Must Never Change (Invariants)
+- Never delete or overwrite existing SQLite database tables without an explicit backup.
+- Never store API keys in code; always fetch via `os.environ["GEMINI_API_KEY"]` or Streamlit secrets.
+- Never crash the run if an LLM call fails; always catch API exceptions and show a clean error message.
+- Only create or edit files needed for the active feature.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     Streamlit App (UI)                  │
-│  Pages: Dashboard | Inbox/Triage | Tasks | Decisions |   │
-│         Knowledge Base | Daily Briefing | Settings       │
-└───────────────┬───────────────────────────┬─────────────┘
-                │                           │
-                ▼                           ▼
-      ┌──────────────────┐         ┌──────────────────────┐
-      │   Data Layer      │         │   Reasoning Layer      │
-      │  (SQLite, local)  │◄────────┤  (Gemini API client)   │
-      │  data/guildford.db│  reads  │  bounded, explicit     │
-      └──────────────────┘  data   │  per-call invocations   │
-                                    └──────────────────────┘
-```
+## 9. Acceptance Criteria (Feature 1: Conversational Onboarding)
+It is finished when:
+1. I can open the app, type my company's details into the onboarding chat, and see Gemini successfully parse and save the structure into SQLite.
+2. If the API key is missing or invalid, the user sees a clear error message in the UI sidebar.
+3. The layout renders cleanly without breaking on desktop browsers.
+4. All database writes persist correctly across page refreshes.
 
-- The **Data Layer** is the single source of truth. All persistent state
-  (tasks, notes, decisions, briefing history, settings) lives in SQLite.
-- The **Reasoning Layer** is stateless between calls: it is given data read
-  from SQLite, asked to do one bounded task (summarize, draft, score,
-  prioritize), and returns a result that is shown to the user for approval
-  before anything is written back to the database.
-- The UI never talks to Gemini directly — it goes through a single reasoning
-  client module so prompts, guardrails, and logging are centralized.
-
-## 4. Data Model (initial sketch)
-
-Core tables (exact schema to be finalized in `sql/schema.sql` when
-implementation begins):
-
-- `items` — inbox/triage entries (source, raw content, status, created_at)
-- `tasks` — actionable items (title, description, status, due_date, priority,
-  source_item_id)
-- `decisions` — a log of decisions made, with context and rationale
-  (title, context, decision, rationale, created_at)
-- `notes` — freeform knowledge base entries (title, body, tags, created_at)
-- `briefings` — generated daily/periodic briefing snapshots (date, content,
-  generated_by = "gemini", approved_by_user boolean)
-- `settings` — key/value app configuration (never API keys — see AGENTS.md §5)
-
-All AI-generated content that gets persisted (briefings, drafts, suggested
-priorities) is stored with provenance (`generated_by`) and an explicit
-approval flag so the system can always distinguish human-authored from
-AI-suggested content.
-
-## 5. Gemini Integration Principles
-
-- Every Gemini call is triggered by an explicit user action (e.g. "Generate
-  briefing", "Summarize this item", "Draft a reply") — never a hidden
-  background job.
-- Gemini calls are read-only with respect to the database: the model never
-  writes to SQLite directly. Its output is staged and requires user approval
-  before being persisted as a task, decision, or note.
-- Prompts are built from the user's own local data only. No data is sent to
-  any third party other than the Gemini API itself.
-- API keys are read from environment variables / a local `.env` file, never
-  hardcoded, never committed (see AGENTS.md §5).
-
-## 6. UI Structure (Streamlit pages)
-
-1. **Dashboard** — at-a-glance view of open tasks, recent decisions, today's
-   briefing status.
-2. **Inbox / Triage** — raw items awaiting classification into tasks, notes,
-   or decisions, optionally with Gemini-assisted triage suggestions.
-3. **Tasks** — task list with status, priority, due dates.
-4. **Decisions** — a running decision log (what was decided, why, when).
-5. **Knowledge Base** — searchable notes.
-6. **Daily Briefing** — Gemini-generated summary of the day's priorities,
-   pending decisions, and overdue items, pending user approval.
-7. **Settings** — local configuration (Gemini API key entry, model
-   parameters, data export/backup).
-
-## 7. Security & Privacy
-
-- All persistent data stays local (SQLite file on the user's machine).
-- No telemetry, no analytics, no third-party sync services.
-- The only outbound network calls are to the Gemini API, and only when the
-  user explicitly triggers a reasoning action.
-- Secrets (Gemini API key) are never committed to the repository; `.env` is
-  gitignored and `.env.example` documents required variables without values.
-
-## 8. Non-Goals (for this level)
-
-- No multi-user support / auth system (single local user).
-- No autonomous execution of external actions (sending emails, making
-  purchases, etc.) — see Level 3 note in §1.
-- No cloud database or hosted deployment as a default configuration.
-- No background schedulers/daemons beyond what the user explicitly runs.
-
-## 9. Amendments
-
-This blueprint is the architectural contract for the project. Changes to the
-stack, storage model, or the Level 2 boundary must go through the amendment
-process defined in `AGENTS.md`.
+## 10. Environment & Deployment Basics
+- **Public access**: Yes, via a secure Streamlit Community Cloud link for interviews.
+- **Secrets needed**: `GEMINI_API_KEY` stored in Streamlit Cloud secrets management or local `.env`.
