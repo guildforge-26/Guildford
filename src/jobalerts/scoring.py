@@ -23,52 +23,27 @@ from typing import Optional
 
 import anthropic
 
+# Exactly briefing.txt Part I's top-level keys. briefing.txt is the full
+# system prompt as-is (Part A already says "return strict JSON only... no
+# markdown fences", and Part I spells out the schema) -- this module adds
+# no separate formatting instructions of its own, so there is nothing here
+# that can drift out of sync with the real rubric.
 REQUIRED_TOP_LEVEL_KEYS = (
+    "verified",
     "track",
-    "tier",
-    "total_score",
+    "hard_filter_failed",
+    "hard_filter_reason",
     "breakdown",
-    "hard_filter",
+    "total_score",
+    "tier",
     "matching_facts",
-    "top_gaps",
+    "gaps",
     "resume_version",
     "warm_angle",
     "next_action",
 )
 
-_RESPONSE_FORMAT_INSTRUCTIONS = """
-You are scoring ONE job posting against the candidate profile above.
-
-Respond with ONLY a single valid JSON object -- no markdown code fences, no
-commentary before or after it. It must have exactly these top-level keys:
-
-{
-  "track": "<track1|track2|track3|track4|none>",
-  "tier": "<A|B|C|reject>",
-  "total_score": <integer 0-100>,
-  "breakdown": {
-    "<part_1_name>": {"score": <int>, "max": <int>, "notes": "<why>"},
-    "<part_2_name>": {"score": <int>, "max": <int>, "notes": "<why>"},
-    "<part_3_name>": {"score": <int>, "max": <int>, "notes": "<why>"},
-    "<part_4_name>": {"score": <int>, "max": <int>, "notes": "<why>"},
-    "<part_5_name>": {"score": <int>, "max": <int>, "notes": "<why>"},
-    "<part_6_name>": {"score": <int>, "max": <int>, "notes": "<why>"},
-    "<part_7_name>": {"score": <int>, "max": <int>, "notes": "<why>"},
-    "ai_bonus": {"score": <int>, "notes": "<applied AI/automation experience relevance, or 0 if none>"}
-  },
-  "hard_filter": {"passed": <true|false>, "reason": "<why passed or which hard filter failed>"},
-  "matching_facts": ["<fact 1>", "<fact 2>", "<fact 3>"],
-  "top_gaps": ["<gap 1>", "<gap 2>", "<gap 3>"],
-  "resume_version": "<which resume version to use>",
-  "warm_angle": "<a specific warm outreach angle for this posting>",
-  "next_action": "<one concrete next action>"
-}
-
-Use the seven-part scoring method and hard filters exactly as defined in the
-candidate profile above. If a hard filter fails, still return valid JSON
-with "hard_filter": {"passed": false, ...}, "tier": "reject", and a
-total_score that reflects the failure -- never omit fields or return prose.
-""".strip()
+VALID_TIERS = {"A", "B", "C", "skip"}
 
 
 class ScoringError(Exception):
@@ -86,10 +61,10 @@ class ScoreResult:
 
 
 def build_system_prompt(briefing_text: str) -> str:
-    return f"{briefing_text.strip()}\n\n---\n\n{_RESPONSE_FORMAT_INSTRUCTIONS}"
+    return briefing_text.strip()
 
 
-def build_user_message(posting: dict) -> str:
+def build_user_message(posting: dict, applicant_count: Optional[int] = None, contacts_notes: Optional[str] = None) -> str:
     fields = [
         f"Title: {posting.get('title', '')}",
         f"Company: {posting.get('company', '')}",
@@ -97,6 +72,9 @@ def build_user_message(posting: dict) -> str:
         f"Salary (as stated): {posting.get('salary_text') or 'not stated'}",
         f"Source: {posting.get('source', '')}",
         f"URL: {posting.get('canonical_url') or posting.get('url', '')}",
+        f"Posting date: {posting.get('posted_at') or 'not supplied'}",
+        f"Applicant count: {applicant_count if applicant_count is not None else 'not supplied'}",
+        f"Contacts/access notes: {contacts_notes or 'none supplied'}",
         "",
         "Full posting text:",
         posting.get("raw_text") or "(not available -- score on the fields above only)",
@@ -124,8 +102,14 @@ def _validate(data: dict) -> None:
         raise ScoringError(f"model response missing keys: {missing}")
     if not isinstance(data["total_score"], (int, float)) or not (0 <= data["total_score"] <= 100):
         raise ScoringError(f"total_score out of range: {data.get('total_score')!r}")
-    if len(data.get("matching_facts", [])) < 1 or len(data.get("top_gaps", [])) < 1:
-        raise ScoringError("matching_facts / top_gaps must be non-empty lists")
+    if data.get("tier") not in VALID_TIERS:
+        raise ScoringError(f"tier must be one of {VALID_TIERS}: {data.get('tier')!r}")
+    if not isinstance(data.get("breakdown"), dict):
+        raise ScoringError(f"breakdown must be an object: {data.get('breakdown')!r}")
+    if not isinstance(data.get("matching_facts"), list) or not isinstance(data.get("gaps"), list):
+        raise ScoringError("matching_facts and gaps must be lists")
+    if bool(data.get("hard_filter_failed")) and data.get("tier") != "skip":
+        raise ScoringError(f"hard_filter_failed=true must carry tier='skip', got {data.get('tier')!r}")
 
 
 def compute_cost_usd(usage, pricing: dict) -> float:
@@ -145,9 +129,11 @@ def score_posting(
     briefing_text: str,
     posting: dict,
     max_json_retries: int = 2,
+    applicant_count: Optional[int] = None,
+    contacts_notes: Optional[str] = None,
 ) -> ScoreResult:
     system_prompt = build_system_prompt(briefing_text)
-    user_message = build_user_message(posting)
+    user_message = build_user_message(posting, applicant_count=applicant_count, contacts_notes=contacts_notes)
 
     last_error: Optional[Exception] = None
     for attempt in range(1, max_json_retries + 2):
@@ -251,24 +237,26 @@ def scan_for_fractional_leads(
 
 def score_to_db_row(result: ScoreResult, model: str) -> dict:
     data = result.data
-    breakdown = data.get("breakdown", {})
-    ai_bonus = breakdown.get("ai_bonus", {}) if isinstance(breakdown, dict) else {}
+    breakdown = data.get("breakdown", {}) if isinstance(data.get("breakdown"), dict) else {}
+    ai_bonus_score = breakdown.get("ai_bonus", 0)
     return {
-        "track": data.get("track"),
+        "verified": int(bool(data.get("verified", True))),
+        "track": str(data.get("track", 0)),
         "tier": data.get("tier"),
         "total_score": int(data.get("total_score", 0)),
         "breakdown_json": json.dumps(breakdown),
-        "hard_filter_passed": int(bool(data.get("hard_filter", {}).get("passed"))),
-        "hard_filter_reason": data.get("hard_filter", {}).get("reason"),
+        "hard_filter_passed": int(not bool(data.get("hard_filter_failed"))),
+        "hard_filter_reason": data.get("hard_filter_reason"),
         "matching_facts_json": json.dumps(data.get("matching_facts", [])),
-        "top_gaps_json": json.dumps(data.get("top_gaps", [])),
+        "top_gaps_json": json.dumps(data.get("gaps", [])),
         "resume_version": data.get("resume_version"),
         "warm_angle": data.get("warm_angle"),
         "next_action": data.get("next_action"),
-        "ai_bonus_score": ai_bonus.get("score", 0) if isinstance(ai_bonus, dict) else 0,
-        "ai_bonus_notes": ai_bonus.get("notes") if isinstance(ai_bonus, dict) else None,
+        "ai_bonus_score": int(ai_bonus_score) if isinstance(ai_bonus_score, (int, float)) else 0,
+        "ai_bonus_notes": None,
         "model_used": model,
         "input_tokens": result.input_tokens,
         "output_tokens": result.output_tokens,
         "cost_usd": result.cost_usd,
+        "raw_json": json.dumps(data),
     }

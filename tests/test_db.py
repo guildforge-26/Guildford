@@ -43,10 +43,10 @@ def test_score_saved_once_and_marks_posting_scored(conn):
     posting_id, _ = dbmod.upsert_posting(conn, _sample_posting())
     assert dbmod.has_score(conn, posting_id) is False
     row = dict(
-        track="track1", tier="A", total_score=85, breakdown_json="{}", hard_filter_passed=1,
+        verified=1, track="1", tier="A", total_score=85, breakdown_json="{}", hard_filter_passed=1,
         hard_filter_reason=None, matching_facts_json="[]", top_gaps_json="[]", resume_version="v1",
         warm_angle="angle", next_action="apply", ai_bonus_score=0, ai_bonus_notes=None,
-        model_used="claude-sonnet-5", input_tokens=100, output_tokens=50, cost_usd=0.001,
+        model_used="claude-sonnet-5", input_tokens=100, output_tokens=50, cost_usd=0.001, raw_json="{}",
     )
     dbmod.save_score(conn, posting_id, row, "run1")
     assert dbmod.has_score(conn, posting_id) is True

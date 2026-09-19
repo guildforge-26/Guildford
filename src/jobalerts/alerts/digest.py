@@ -11,22 +11,34 @@ import json
 from email.mime.text import MIMEText
 
 
+# Point caps from briefing.txt Part H, for readable "x/max" display only --
+# the model computes and returns the actual score, this is just formatting.
+_PART_MAX_POINTS = {
+    "requirements_match": 35, "track_level_fit": 15, "industry_fit": 10, "location": 10,
+    "compensation": 10, "access": 10, "timing_competition": 10, "ai_bonus": 5,
+}
+
+
 def _format_score_entry(row) -> str:
     breakdown = json.loads(row["breakdown_json"] or "{}")
     facts = json.loads(row["matching_facts_json"] or "[]")
     gaps = json.loads(row["top_gaps_json"] or "[]")
     breakdown_lines = "\n".join(
-        f"    - {name}: {details.get('score')}/{details.get('max', '?')} -- {details.get('notes', '')}"
-        for name, details in breakdown.items()
-        if isinstance(details, dict)
+        f"    - {name}: {value}/{_PART_MAX_POINTS.get(name, '?')}"
+        for name, value in breakdown.items()
+    )
+    gap_lines = "\n".join(
+        f"    - {g.get('gap', g)}" + (f" (fix: {g['how_to_address']})" if isinstance(g, dict) and g.get("how_to_address") else "")
+        for g in gaps
     )
     return (
         f"### {row['title']} at {row['company']} ({row['location'] or 'location n/a'})\n"
-        f"Score: {row['total_score']}/100  |  Tier: {row['tier']}  |  Track: {row['track']}\n"
+        f"Score: {row['total_score']}/100  |  Tier: {row['tier']}  |  Track: {row['track']}"
+        f"{' (unverified -- thin posting text)' if not row['verified'] else ''}\n"
         f"Link: {row['canonical_url'] or ''}\n\n"
         f"Breakdown:\n{breakdown_lines}\n\n"
         f"Matching facts: {'; '.join(facts)}\n"
-        f"Top gaps: {'; '.join(gaps)}\n"
+        f"Gaps:\n{gap_lines}\n"
         f"Resume version: {row['resume_version']}\n"
         f"Warm angle: {row['warm_angle']}\n"
         f"Next action: {row['next_action']}\n"

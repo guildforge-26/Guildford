@@ -91,7 +91,8 @@ class Settings:
     alert_score_a: int = field(default_factory=lambda: _env_int("ALERT_SCORE_A", 80))
     alert_score_b_min: int = field(default_factory=lambda: _env_int("ALERT_SCORE_B_MIN", 65))
     track2_alert_score: int = field(default_factory=lambda: _env_int("TRACK2_ALERT_SCORE", 70))
-    min_salary_usd: int = 100_000
+    min_salary_usd: int = 100_000          # full-time floor, briefing.txt Part B
+    min_monthly_retainer_usd: int = 5_000  # fractional/interim (Track 2) floor, briefing.txt Part B
     followup_business_days: int = 5
     collect_lookback_hours: int = field(default_factory=lambda: _env_int("COLLECT_LOOKBACK_HOURS", 26))
 

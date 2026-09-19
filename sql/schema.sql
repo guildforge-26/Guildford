@@ -32,23 +32,25 @@ CREATE INDEX IF NOT EXISTS idx_postings_canonical_url ON postings(canonical_url)
 -- One row per scored posting. PK on posting_id enforces "scored once".
 CREATE TABLE IF NOT EXISTS scores (
     posting_id TEXT PRIMARY KEY REFERENCES postings(id),
-    track TEXT,
-    tier TEXT,
+    verified INTEGER,                    -- 0/1 -- false if the model judged the posting text too thin (briefing.txt Part A)
+    track TEXT,                          -- "1".."4" per briefing.txt Part G, or "0" for no track
+    tier TEXT,                           -- "A" / "B" / "C" / "skip" per briefing.txt Part H
     total_score INTEGER,
-    breakdown_json TEXT,                 -- the 7-part score breakdown, as returned by the model
-    hard_filter_passed INTEGER,          -- 0/1
+    breakdown_json TEXT,                 -- the 8-part score breakdown (7 parts + ai_bonus), flat name->int, as returned by the model
+    hard_filter_passed INTEGER,          -- 0/1 -- inverse of the model's hard_filter_failed
     hard_filter_reason TEXT,
-    matching_facts_json TEXT,            -- 3 matching facts
-    top_gaps_json TEXT,                  -- top 3 gaps
+    matching_facts_json TEXT,            -- matching facts, as returned by the model
+    top_gaps_json TEXT,                  -- list of {gap, how_to_address} objects, as returned by the model
     resume_version TEXT,
     warm_angle TEXT,
     next_action TEXT,
-    ai_bonus_score INTEGER,
+    ai_bonus_score INTEGER,              -- breakdown.ai_bonus, pulled out for easy querying
     ai_bonus_notes TEXT,
     model_used TEXT,
     input_tokens INTEGER,
     output_tokens INTEGER,
     cost_usd REAL,
+    raw_json TEXT,                       -- the full parsed model response, verbatim, for audit/debugging
     scored_at TEXT NOT NULL DEFAULT (datetime('now')),
     run_id TEXT
 );

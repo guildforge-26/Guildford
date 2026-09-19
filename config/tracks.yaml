@@ -1,69 +1,67 @@
 # Track keyword config for the cheap, pre-Claude-call title filter.
 #
-# PROVENANCE: these keyword lists are taken directly from the "SEARCH STRINGS
-# TO SET UP AS EMAIL ALERTS" section of the build spec (the boolean search
-# terms Tommy uses for his own LinkedIn/Indeed saved searches). They are a
-# reasonable placeholder for "does this title belong to one of my tracks?"
-# but the *scoring* rubric (weights, hard filters, the 7-part breakdown)
-# comes from briefing.txt, not from this file.
-#
-# TODO once briefing.txt is available: confirm these match Part A-F exactly,
-# and add any track-specific title variants briefing.txt calls out that
-# aren't in the spec's search-string appendix.
+# PROVENANCE: sourced directly from briefing.txt Part G (target tracks) and
+# Part H (hard filters). Track ids match the "track" field the model itself
+# returns in scoring.py (1-4, or 0 for no track), as strings, for direct
+# comparability with scores.track values.
 tracks:
-  - id: track1
-    name: "Business Development / Growth"
+  - id: "1"
+    name: "Business development, origination and relationship leadership"
     title_keywords:
       - "director of business development"
+      - "manager of business development"
       - "business development manager"
       - "business development director"
-      - "client relationship director"
-      - "strategic partnerships"
-      - "pursuit manager"
-      - "growth director"
       - "director of growth"
+      - "client relationship director"
+      - "pursuit manager"
+      - "strategic partnerships manager"
+      - "strategic partnerships director"
+      - "business development lead"
 
-  - id: track2
-    name: "Fractional / Interim CFO or COO"
+  - id: "2"
+    name: "Fractional or interim CFO, COO or operator for owner-led companies"
     title_keywords:
       - "fractional cfo"
       - "interim cfo"
       - "fractional coo"
       - "interim coo"
       - "virtual cfo"
-      - "part-time cfo"
-      - "part time cfo"
-      - "fractional chief financial officer"
-      - "interim chief financial officer"
+      - "interim president"
+      - "interim general manager"
+      - "interim gm"
+      - "fractional operator"
 
-  - id: track3
-    name: "COO / Operations / Chief of Staff (small co. or founder-led)"
+  - id: "3"
+    name: "COO, Integrator or operations lead at founder-led companies"
     title_keywords:
       - "chief operating officer"
       - "coo"
       - "integrator"
       - "director of operations"
+      - "vp of operations"
+      - "vice president of operations"
       - "general manager"
       - "chief of staff"
 
-  - id: track4
-    name: "AI Operations / Transformation"
+  - id: "4"
+    name: "AI operations and transformation"
     title_keywords:
       - "ai operations"
+      - "director of ai operations"
+      - "head of ai operations"
       - "ai transformation"
       - "director of automation"
-      - "digital transformation"
-      - "ai implementation"
-      - "ai strategy"
+      - "director of digital transformation"
+      - "ai implementation consultant"
       - "fractional chief ai officer"
+      - "ai strategy advisor"
       - "ai program manager"
-      - "head of ai"
-      - "vp of ai"
 
 # Titles that clearly belong to a different profession and should never
-# match a track even if a keyword above appears as a substring elsewhere
-# (kept short and conservative -- prefer a false pass-through to scoring
-# over a false drop; the model's hard-filter check is the real gate).
+# match a track even if a keyword above appears as a substring elsewhere.
+# Part G, Track 4: "Skip roles that require ML engineering, data science
+# degrees or shipped production code."
 title_exclude_keywords:
   - "machine learning engineer"
   - "ml engineer"
@@ -72,11 +70,12 @@ title_exclude_keywords:
   - "data scientist"
   - "devops engineer"
 
-# Placeholder hard-filter disqualifiers, inferred from the build spec's own
-# test instructions ("confirm ... a posting that requires a CPA" should fail
-# hard filters). CONFIRM against briefing.txt Part B/C (hard filters) and
-# edit this list once the real briefing is available -- do not treat this
-# as verified fact about Tommy's credentials.
+# Cheap, keyword-detectable hard filters from Part H, checked before the
+# paid scoring call so an obviously-disqualified posting never reaches it.
+# This is NOT the full Part H hard-filter list -- filters that need
+# judgment (company size, "field operations experience") are left to the
+# model, which has the full Part H text and applies them via
+# hard_filter_failed / hard_filter_reason on every scored posting.
 hard_filters:
   disqualifying_phrases:
     - "must be a cpa"
@@ -84,5 +83,13 @@ hard_filters:
     - "cpa required"
     - "must hold a cpa"
     - "chartered professional accountant required"
-    - "cfa designation required"
-    - "cfa charter required"
+    - "p.eng required"
+    - "p.eng. required"
+    - "professional engineer designation required"
+    - "peng designation required"
+    - "pmp certification required"
+    - "pmp required"
+    - "law degree required"
+    - "jd required"
+    - "bar admission required"
+    - "licensed attorney required"

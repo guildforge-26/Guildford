@@ -5,17 +5,30 @@
 # careers page -- reading it is not scraping and doesn't touch LinkedIn or
 # Indeed's terms of service.
 #
-# TODO (Tommy): the build spec asks to seed this with "the Calgary
-# construction, development and advisory firms named in briefing.txt Part G"
-# -- briefing.txt wasn't available when this scaffold was built, so this
-# list is empty. Once you share briefing.txt (or just Part G), add entries
-# like the commented example below for each firm, then delete this note.
+# RESEARCH FINDING (checked live, September 2026): briefing.txt Part G's
+# starter list -- Chandos, Ledcor, Graham, PCL, Clark Builders, Carlson,
+# ASTRA, Style Developments, BAM, MNP Corporate Finance, Sequeira Partners,
+# Stack'd Consulting -- does NOT use Greenhouse, Lever, Ashby or Workable.
+# What was found instead:
+#   - Ledcor:        Workday, at jobs.ledcor.com
+#   - Clark Builders: Workday, at cbgoc.wd3.myworkdayjobs.com/cb
+#   - PCL:           proprietary (careers.pcl.com + craftlink.pcl.com)
+#   - Graham, Carlson, MNP, Sequeira Partners: no ATS platform identified;
+#     postings surface only on their own site and/or Indeed/LinkedIn/Glassdoor
+#   - Chandos, ASTRA, Style Developments, BAM: not confirmed either way
+# So this list is empty by design, not by omission: none of Part G's named
+# firms are coverable by this collector as scoped. Workday DOES have a
+# public JSON API at the same shape as Greenhouse's
+# (POST https://{tenant}.wd{N}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs)
+# and would cover Ledcor and Clark Builders -- worth adding as a fifth
+# collector type if Workday coverage matters enough to justify it (see
+# docs/adr/ADR-001). It wasn't added here because it couldn't be verified
+# end-to-end from this sandbox (outbound network policy blocked the test
+# request), so shipping it untested would risk a silent, unverified
+# integration -- exactly what ADR-001 already argues against for Job Bank.
 #
-# How to find a company's board slug:
-#   Greenhouse: their careers page URL is usually boards.greenhouse.io/<slug>
-#   Lever:      jobs.lever.co/<slug>
-#   Ashby:      jobs.ashbyhq.com/<slug>
-#   Workable:   apply.workable.com/<slug>
+# If you find a company from Part G that DOES use one of the four
+# supported platforms, add it here:
 #
 # - company: "Example Construction Co."
 #   board_type: greenhouse

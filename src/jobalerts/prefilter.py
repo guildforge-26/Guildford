@@ -82,30 +82,51 @@ def matched_track(title: str, tracks_config: dict) -> Optional[str]:
 
 
 _HOURLY_RE = re.compile(r"\$?\s?(\d+(?:\.\d+)?)\s?(?:/\s?hr|/\s?hour|per\s+hour)", re.I)
+_MONTHLY_RE = re.compile(r"\$?\s?(\d+(?:\.\d+)?)\s?(?:/\s?mo\b|/\s?month|per\s+month|a\s+month|monthly)", re.I)
 _K_SUFFIX_RE = re.compile(r"(\d+(?:\.\d+)?)\s?[kK]\b")
 _FULL_NUMBER_RE = re.compile(r"\b(\d{4,7})\b")
 
 
-def parse_salary_max_usd(salary_text: Optional[str]) -> Optional[float]:
-    """Best-effort: returns the highest figure implied by the salary text, or
-    None if no figure could be parsed (an unparseable/missing salary is not
-    a reason to drop a posting at this stage)."""
+def parse_salary_figures(salary_text: Optional[str]) -> Optional[tuple[float, float]]:
+    """Best-effort: returns (max_annual_equivalent_usd, max_monthly_equivalent_usd),
+    or None if no figure could be parsed (an unparseable/missing salary is
+    not a reason to drop a posting at this stage). Briefing.txt Part B sets
+    two different floors -- $100k/year full-time, $5k/month fractional or
+    interim -- so both units are derived from whatever's actually stated."""
     if not salary_text:
         return None
     text = salary_text.replace(",", "")
+
+    monthly = _MONTHLY_RE.search(text)
+    if monthly:
+        amount = float(monthly.group(1))
+        return (amount * 12, amount)
+
     hourly = _HOURLY_RE.search(text)
     if hourly:
-        return float(hourly.group(1)) * 2080  # approx. full-time annualized hours
+        annual = float(hourly.group(1)) * 2080  # approx. full-time annualized hours
+        return (annual, annual / 12)
+
     figures = [float(m) * 1000 for m in _K_SUFFIX_RE.findall(text)]
     figures += [float(m) for m in _FULL_NUMBER_RE.findall(text)]
-    return max(figures) if figures else None
+    if not figures:
+        return None
+    annual = max(figures)
+    return (annual, annual / 12)
 
 
-def salary_meets_minimum(salary_text: Optional[str], min_usd: int) -> bool:
-    parsed = parse_salary_max_usd(salary_text)
+def salary_meets_minimum(
+    salary_text: Optional[str], min_annual_usd: int, min_monthly_usd: int, is_fractional: bool = False
+) -> bool:
+    """is_fractional=True applies the monthly retainer floor (Track 2) instead
+    of the full-time annual floor."""
+    parsed = parse_salary_figures(salary_text)
     if parsed is None:
         return True  # unknown salary is not filtered out here
-    return parsed >= min_usd
+    annual_equivalent, monthly_equivalent = parsed
+    if is_fractional:
+        return monthly_equivalent >= min_monthly_usd
+    return annual_equivalent >= min_annual_usd
 
 
 def disqualifying_requirement(text: Optional[str], disqualifying_phrases: list[str]) -> Optional[str]:
@@ -118,7 +139,9 @@ def disqualifying_requirement(text: Optional[str], disqualifying_phrases: list[s
     return None
 
 
-def run_prefilter(posting: dict, tracks_config: dict, min_salary_usd: int) -> PrefilterResult:
+def run_prefilter(
+    posting: dict, tracks_config: dict, min_salary_usd: int, min_monthly_retainer_usd: int = 5_000
+) -> PrefilterResult:
     """posting requires at least: title, location, salary_text (raw_text optional)."""
     if not is_allowed_geography(posting.get("location")):
         return PrefilterResult(False, f"geography_not_ca_us: {posting.get('location')!r}")
@@ -127,8 +150,10 @@ def run_prefilter(posting: dict, tracks_config: dict, min_salary_usd: int) -> Pr
     if track is None:
         return PrefilterResult(False, f"title_no_track_match: {posting.get('title')!r}")
 
-    if not salary_meets_minimum(posting.get("salary_text"), min_salary_usd):
-        return PrefilterResult(False, f"salary_below_minimum: {posting.get('salary_text')!r}")
+    is_fractional = track == "2"  # Track 2: fractional/interim CFO/COO -- monthly retainer floor, not annual
+    if not salary_meets_minimum(posting.get("salary_text"), min_salary_usd, min_monthly_retainer_usd, is_fractional):
+        reason = "retainer_below_minimum" if is_fractional else "salary_below_minimum"
+        return PrefilterResult(False, f"{reason}: {posting.get('salary_text')!r}")
 
     disqualifiers = tracks_config.get("hard_filters", {}).get("disqualifying_phrases", [])
     haystack = " ".join(filter(None, [posting.get("title"), posting.get("raw_text")]))

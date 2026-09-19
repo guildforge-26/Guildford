@@ -111,7 +111,10 @@ def _store_and_prefilter(settings: Settings, conn, run_id: str, raw_postings: li
         if raw.get("raw_text"):
             dbmod.set_posting_enriched(conn, posting_id, raw["raw_text"])
 
-        pf = run_prefilter({**record, "raw_text": raw.get("raw_text")}, tracks_config, settings.min_salary_usd)
+        pf = run_prefilter(
+            {**record, "raw_text": raw.get("raw_text")}, tracks_config,
+            settings.min_salary_usd, settings.min_monthly_retainer_usd,
+        )
         if not pf.passed:
             dbmod.set_posting_status(conn, posting_id, "prefiltered_out", pf.reason)
             counts["prefiltered_out"] = counts.get("prefiltered_out", 0) + 1
@@ -211,9 +214,9 @@ def _alert_all(settings: Settings, conn, run_id: str, scored_ids: list[str], log
     for posting_id in scored_ids:
         posting = dbmod.get_posting(conn, posting_id)
         score = dbmod.get_score(conn, posting_id)
-        track2_ai_bonus_threshold = settings.track2_alert_score if score["track"] == "track2" else settings.alert_score_a
+        immediate_threshold = settings.track2_alert_score if str(score["track"]) == "2" else settings.alert_score_a
 
-        if score["total_score"] >= track2_ai_bonus_threshold:
+        if score["total_score"] >= immediate_threshold:
             alert_type, priority = "immediate_a", "urgent"
         elif score["total_score"] >= settings.alert_score_b_min:
             alert_type, priority = "digest_b", "default"

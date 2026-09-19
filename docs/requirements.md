@@ -90,14 +90,32 @@ per run and per day/month, with real cost logged per call.
 Code, README, `targets.yaml`, `.env.example`, the scheduled jobs, ADRs, a
 test plan, weekly metrics, and (end of week one) a case study.
 
-## 11. Open items pending `briefing.txt`
+## 11. Status: real `briefing.txt` now in place
 
-The scaffold in this repo works end-to-end on its infrastructure (DB,
-guardrails, collectors, pipeline plumbing, CLI, tests) without
-`briefing.txt`. What's blocked until it's provided:
-- The actual scoring rubric and hard filters used in `scoring.py`'s system
-  prompt (currently it just reads whatever's at `briefing.txt` verbatim).
-- `targets.yaml`'s company list (spec Part G).
-- `config/tracks.yaml`'s title-keyword lists and disqualifying-phrase list
-  are placeholders inferred from the spec's own search-string appendix and
-  test instructions -- confirm/replace once the real briefing is available.
+`briefing.txt` (Tommy's real background, hard filters, four target tracks,
+and the Part H match-score rubric) has been provided and is used as-is --
+`scoring.py` sends it verbatim as the system prompt, with no separate
+formatting instructions layered on top, since Part A/Part I already
+specify the rules and the strict-JSON output shape. `config/tracks.yaml`'s
+title-keyword lists and disqualifying-phrase list are now sourced directly
+from Part G/H rather than inferred, and `prefilter.py` applies the two
+different compensation floors Part B sets (full-time $100k/year vs. Track
+2 fractional/interim $5k/month) based on which track a title matches.
+
+Remaining gap, found by checking each Part G target company live (see
+`targets.yaml`'s header comment and ADR-001): none of the named starter
+companies (Chandos, Ledcor, Graham, PCL, Clark Builders, Carlson, ASTRA,
+Style Developments, BAM, MNP Corporate Finance, Sequeira Partners, Stack'd
+Consulting) use Greenhouse, Lever, Ashby or Workable -- the four ATS
+platforms Source B supports. Two (Ledcor, Clark Builders) use Workday,
+which has a similarly public JSON API and could be added as a fifth
+collector type; this wasn't done in this pass because it couldn't be
+verified end-to-end from this environment (see `targets.yaml`). Until then,
+`targets.yaml` stays empty and Source B has no real coverage of Part G's
+starter list -- Sources A (email alerts) and C (Adzuna) are what actually
+surface postings from these employers today.
+
+Still outstanding before scheduling: the manual pre-launch run against a
+live Claude API key (docs/test_plan.md §2), which needs to happen on a
+machine/session with `ANTHROPIC_API_KEY` set -- it wasn't available in the
+session that built this scaffold.

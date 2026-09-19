@@ -107,14 +107,14 @@ def save_score(conn: sqlite3.Connection, posting_id: str, score: dict, run_id: s
     conn.execute(
         """
         INSERT OR REPLACE INTO scores
-            (posting_id, track, tier, total_score, breakdown_json, hard_filter_passed,
+            (posting_id, verified, track, tier, total_score, breakdown_json, hard_filter_passed,
              hard_filter_reason, matching_facts_json, top_gaps_json, resume_version,
              warm_angle, next_action, ai_bonus_score, ai_bonus_notes, model_used,
-             input_tokens, output_tokens, cost_usd, run_id)
-        VALUES (:posting_id, :track, :tier, :total_score, :breakdown_json, :hard_filter_passed,
+             input_tokens, output_tokens, cost_usd, raw_json, run_id)
+        VALUES (:posting_id, :verified, :track, :tier, :total_score, :breakdown_json, :hard_filter_passed,
                 :hard_filter_reason, :matching_facts_json, :top_gaps_json, :resume_version,
                 :warm_angle, :next_action, :ai_bonus_score, :ai_bonus_notes, :model_used,
-                :input_tokens, :output_tokens, :cost_usd, :run_id)
+                :input_tokens, :output_tokens, :cost_usd, :raw_json, :run_id)
         """,
         {"posting_id": posting_id, "run_id": run_id, **score},
     )

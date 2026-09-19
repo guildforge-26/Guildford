@@ -26,20 +26,24 @@ rubric doesn't need it, and leaving it on (Sonnet 5's default) would only
 add latency and token cost for no quality gain here.
 
 **Output format:** plain-JSON-in-the-prompt, not a structured-outputs beta
-or tool-use. The system prompt tells the model exactly which top-level
-keys to return and to emit nothing else; the code strips markdown fences
-if present, parses with `json.loads`, and retries once with a sharper
-reminder if parsing/validation fails. This keeps the integration portable
-across `anthropic` SDK versions rather than pinning to a specific
-structured-output API shape.
+or tool-use. `briefing.txt` itself already specifies the exact rules
+("return strict JSON only... no markdown fences", Part A) and the exact
+schema (Part I) -- `scoring.py` sends the file verbatim as the system
+prompt and adds no separate formatting instructions of its own, so there
+is nothing to keep in sync when the rubric changes. The code strips
+markdown fences if present, parses with `json.loads`, and retries once
+with a sharper reminder if parsing/validation fails. This also keeps the
+integration portable across `anthropic` SDK versions rather than pinning
+to a specific structured-output API shape.
 
-**Prompt structure and caching:** `briefing.txt` plus the fixed response-
-format instructions form the *system* prompt, marked
-`cache_control: {"type": "ephemeral"}`. It is byte-identical on every call
-in a run (and across runs within the cache TTL), so after the first call,
-Anthropic's prompt caching serves it at roughly 10% of input price instead
-of full price. Only the per-posting text goes in the user message, which
-is never cached (it's different every time).
+**Prompt structure and caching:** `briefing.txt`, unmodified, is the entire
+*system* prompt, marked `cache_control: {"type": "ephemeral"}`. It is
+byte-identical on every call in a run (and across runs within the cache
+TTL), so after the first call, Anthropic's prompt caching serves it at
+roughly 10% of input price instead of full price. Only the per-posting
+text (plus posting date / applicant count / access notes, defaulted per
+Part A's own rules when not supplied) goes in the user message, which is
+never cached (it's different every time).
 
 **Scored once, ever:** `scores.posting_id` is the primary key
 (`db.py::save_score` / `has_score`), and the pipeline checks `has_score`
